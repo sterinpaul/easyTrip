@@ -1,24 +1,27 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/auth.config";
 import { NextResponse } from "next/server";
 
-// This function can be marked `async` if using `await` inside
+const { auth } = NextAuth(authConfig);
+
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
-  const isOnDashboard = req.nextUrl.pathname === "/";
-  
-  if (isOnDashboard) {
-    if (isLoggedIn) return null;
-    return NextResponse.redirect(new URL("/login", req.nextUrl));
-  } else if (isLoggedIn) {
-    // Redirect logged-in users away from login page to dashboard
-    if (req.nextUrl.pathname === "/login") {
-        return NextResponse.redirect(new URL("/", req.nextUrl));
-    }
-  }
-  return null;
-})
+  const { pathname } = req.nextUrl;
+  const isLoginPage = pathname === "/login";
 
-// Optionally, don't invoke Middleware on some paths
+  // Redirect logged-in users away from the login page
+  if (isLoginPage && isLoggedIn) {
+    return NextResponse.redirect(new URL("/", req.nextUrl));
+  }
+
+  // Redirect unauthenticated users to the login page
+  if (!isLoggedIn && !isLoginPage) {
+    return NextResponse.redirect(new URL("/login", req.nextUrl));
+  }
+
+  return null;
+});
+
 export const config = {
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };
