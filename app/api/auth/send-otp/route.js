@@ -17,23 +17,18 @@ export async function POST(req) {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
 
-    // 2. Find or Create User and Update OTP
-    // We allow sign up via OTP too
-    let user = await User.findOne({ email });
-    
-    if (!user) {
-      user = await User.create({
-        email,
-        name: email.split("@")[0], // Default name
-        provider: "email",
-        otp,
-        otpExpiry
-      });
-    } else {
-      user.otp = otp;
-      user.otpExpiry = otpExpiry;
-      await user.save();
+    // 2. Find User
+    const user = await User.findOne({ email });
+
+    // Check if user exists and is admin
+    if (!user || user.role !== 'admin') {
+      return NextResponse.json({ error: "Access denied. Admin privileges required." }, { status: 403 });
     }
+
+    // Update OTP
+    user.otp = otp;
+    user.otpExpiry = otpExpiry;
+    await user.save();
 
     // 3. Send OTP via Email
     const transporter = nodemailer.createTransport({
@@ -43,7 +38,7 @@ export async function POST(req) {
         pass: process.env.NODEMAILER_PASSWORD,
       },
       tls: {
-          rejectUnauthorized: false
+        rejectUnauthorized: false
       }
     });
 

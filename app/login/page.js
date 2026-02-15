@@ -27,7 +27,8 @@ export default function LoginPage() {
       if (res.ok) {
         setStep(2);
       } else {
-        alert("Failed to send OTP. Please try again.");
+        const data = await res.json();
+        alert(data.error || "Failed to send OTP. Please try again.");
       }
     } catch (error) {
       console.error(error);
