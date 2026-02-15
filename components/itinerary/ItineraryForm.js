@@ -106,7 +106,7 @@ export default function ItineraryForm({ initialData }) {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 max-w-4xl mx-auto pb-20">
       {/* Basic Info Card */}
       <div className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 p-6 rounded-2xl backdrop-blur-sm shadow-sm dark:shadow-none">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 bg-clip-text text-transparent bg-linear-to-r from-purple-500 to-pink-500 w-fit">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 bg-clip-text bg-linear-to-r from-purple-500 to-pink-500 w-fit">
           Trip Details
         </h2>
 
@@ -286,7 +286,7 @@ export default function ItineraryForm({ initialData }) {
       </div>
 
       {/* Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-t border-gray-200 dark:border-white/10 z-50 md:pl-72 flex justify-end gap-4">
+      <div className="fixed bottom-0 left-0 right-0 md:left-64 p-4 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-t border-gray-200 dark:border-white/10 z-50 flex justify-end gap-4">
         <button
           type="button"
           onClick={() => router.back()}

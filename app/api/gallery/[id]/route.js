@@ -1,11 +1,11 @@
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Gallery from "@/models/Gallery";
 import { NextResponse } from "next/server";
 
 export async function DELETE(req, { params }) {
   try {
-    const session = await auth();
+    const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id } = await params;

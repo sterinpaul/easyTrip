@@ -4,11 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Users, FileText, Calendar, Clock, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/components/providers/AuthProvider";
 import Link from "next/link";
 
 export default function DashboardStatsPage() {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboardStats"],
     queryFn: async () => {
@@ -62,7 +62,7 @@ export default function DashboardStatsPage() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Dashboard Overview</h1>
         <div className="text-sm text-gray-500 dark:text-gray-400">
-          Welcome back, <span className="text-purple-600 dark:text-purple-400 font-semibold">{session?.user?.name}</span>
+          Welcome back, <span className="text-purple-600 dark:text-purple-400 font-semibold capitalize">{user?.name}</span>
         </div>
       </div>
 

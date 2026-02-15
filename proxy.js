@@ -1,11 +1,14 @@
-import NextAuth from "next-auth";
-import { authConfig } from "@/auth.config";
 import { NextResponse } from "next/server";
+import { verifySession } from "@/lib/auth";
+import { cookies } from "next/headers";
 
-const { auth } = NextAuth(authConfig);
+export default async function proxy(req) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("session_token")?.value;
 
-export default auth((req) => {
-  const isLoggedIn = !!req.auth;
+  const user = token ? await verifySession(token) : null;
+  const isLoggedIn = !!user;
+
   const { pathname } = req.nextUrl;
   const isLoginPage = pathname === "/login";
 
@@ -19,8 +22,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/login", req.nextUrl));
   }
 
-  return null;
-});
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],

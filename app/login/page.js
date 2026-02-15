@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { LucidePlane, LucideMapPin, LucideCompass, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState(1); // 1: Email, 2: OTP
@@ -40,20 +41,11 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await signIn("credentials", {
-        email,
-        otp,
-        redirect: false,
-      });
-
-      if (res?.error) {
-        alert(res.error);
-      } else {
-        router.push("/");
-      }
+      await login(email, otp);
+      // login function handles redirect
     } catch (error) {
       console.error(error);
-      alert("Login failed.");
+      alert(error.message || "Login failed.");
     } finally {
       setLoading(false);
     }

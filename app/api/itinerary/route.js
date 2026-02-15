@@ -1,13 +1,13 @@
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Itinerary from "@/models/Itinerary";
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
   try {
-    const session = await auth();
+    const session = await getSession();
     if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     await dbConnect();
@@ -24,7 +24,7 @@ export async function GET(req) {
     // I will filter by user mostly, but user is admin.
     const query = { status };
     if (session.user.role !== 'admin') {
-         query.user = session.user.id;
+      query.user = session.user.id;
     }
 
     const itineraries = await Itinerary.find(query)
@@ -48,9 +48,9 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const session = await auth();
+    const session = await getSession();
     if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();

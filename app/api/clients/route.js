@@ -1,13 +1,13 @@
-import { auth } from "@/lib/auth";
+import { getSession } from "../../../lib/auth";
 import dbConnect from "@/lib/db";
 import Client from "@/models/Client";
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
   try {
-    const session = await auth();
+    const session = await getSession();
     if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     await dbConnect();
@@ -17,8 +17,8 @@ export async function GET(req) {
     const skip = (page - 1) * limit;
 
     const query = {};
-     if (session.user.role !== 'admin') {
-         query.user = session.user.id;
+    if (session.user.role !== 'admin') {
+      query.user = session.user.id;
     }
 
     const clients = await Client.find(query)
@@ -41,9 +41,9 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const session = await auth();
+    const session = await getSession();
     if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
