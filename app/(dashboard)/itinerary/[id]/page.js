@@ -1,45 +1,30 @@
-import ItineraryForm from "@/components/itinerary/ItineraryForm";
-import dbConnect from "@/lib/db";
-import Itinerary from "@/models/Itinerary";
-import { notFound } from "next/navigation";
-import { getSession } from "@/lib/auth";
+import Link from "next/link";
+import ItineraryView from "../../../../components/itinerary/ItineraryView";
+import ItineraryPlan from "../../../../components/itinerary/ItineraryPlan";
+// import ItineraryDetail from "../../../../components/itinerary/ItineraryDetail";
 
-export default async function EditItineraryPage({ params }) {
+// Metadata for the page
+export const metadata = {
+  title: 'Travel Itinerary | 3-Day Adventure',
+  description: 'Explore Borobudur Temple, Beaches, and Mountains in this 3-day journey.',
+};
+
+export default async function Page({ params }) {
   const { id } = await params;
-  const session = await getSession();
-
-  await dbConnect();
-
-  // Find itinerary and check ownership if needed
-  const itinerary = await Itinerary.findById(id).lean();
-
-  if (!itinerary) {
-    notFound();
-  }
-
-  // Convert _id to string for serialization
-  const serializedItinerary = {
-    ...itinerary,
-    _id: itinerary._id.toString(),
-    client: itinerary.client ? itinerary.client.toString() : "",
-    user: itinerary.user.toString(),
-    startDate: itinerary.startDate.toISOString().split("T")[0],
-    endDate: itinerary.endDate.toISOString().split("T")[0],
-    activities: itinerary.activities.map(a => ({
-      ...a,
-      _id: a._id ? a._id.toString() : undefined,
-      date: a.date ? a.date.toISOString() : undefined
-    })),
-    createdAt: itinerary.createdAt.toISOString(),
-    updatedAt: itinerary.updatedAt.toISOString(),
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-white">Edit Itinerary</h1>
+    <>
+      <Link
+        href={`/itinerary/${id}/edit`}
+        className="mt-5 inline-block text-purple-500 hover:text-purple-600 font-medium transition-colors"
+      >
+        Edit &rarr;
+      </Link>
+      <div className="flex flex-col gap-5">
+        <ItineraryView />
+        {/* <ItineraryPlan /> */}
+        {/* <ItineraryDetail id={id} /> */}
+
       </div>
-      <ItineraryForm initialData={serializedItinerary} />
-    </div>
+    </>
   );
 }

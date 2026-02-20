@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb',
     },
   },
+  allowedDevOrigins: ['http://localhost:2000'],
 };
 
 export default nextConfig;

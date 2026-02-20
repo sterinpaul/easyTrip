@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/db";
-import Gallery from "@/models/Gallery";
+import LocationImage from "@/models/LocationImage";
 import { NextResponse } from "next/server";
 
 export async function DELETE(req, { params }) {
@@ -11,13 +11,13 @@ export async function DELETE(req, { params }) {
     const { id } = await params;
     await dbConnect();
 
-    const result = await Gallery.findOneAndDelete({ _id: id, user: session.user.role === 'admin' ? { $exists: true } : session.user.id });
+    const result = await LocationImage.findOneAndDelete({ _id: id, user: session.user.role === 'admin' ? { $exists: true } : session.user.id });
 
     if (!result) return NextResponse.json({ error: "Not found or unauthorized" }, { status: 404 });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Gallery Delete Error:", error);
+    console.error("LocationImage Delete Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

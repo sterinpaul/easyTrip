@@ -8,11 +8,15 @@ export async function GET() {
     await dbConnect();
 
     const totalClients = await Client.countDocuments();
-    const totalItineraries = await Itinerary.countDocuments();
+    const totalItineraries = await Itinerary.countDocuments({ isActive: true });
     const upcomingTrips = await Itinerary.countDocuments({
+      status: 'saved',
+      isActive: true,
       startDate: { $gte: new Date() },
     });
     const pastTrips = await Itinerary.countDocuments({
+      status: 'saved',
+      isActive: true,
       endDate: { $lt: new Date() },
     });
 

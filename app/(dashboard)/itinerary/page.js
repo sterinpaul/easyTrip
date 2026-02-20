@@ -33,6 +33,10 @@ export default function DashboardPage() {
     router.push(`?status=${statusTab}&page=${newPage}`);
   };
 
+  const navigate = (url) => {
+    router.push(url);
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -93,12 +97,13 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AnimatePresence>
             {itineraries.map((itinerary) => (
-              <motion.div
+              <motion.button
                 key={itinerary._id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
+                onClick={() => navigate(`/itinerary/${itinerary._id}`)}
                 className="group bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/10 flex flex-col"
               >
                 {/* Image Placeholder or Hero Image */}
@@ -127,14 +132,8 @@ export default function DashboardPage() {
                       <span>{itinerary.travelers} Travelers</span>
                     </div>
                   </div>
-                  <Link
-                    href={`/itinerary/${itinerary._id}`}
-                    className="mt-5 inline-block text-purple-500 hover:text-purple-600 font-medium transition-colors"
-                  >
-                    View Details &rarr;
-                  </Link>
                 </div>
-              </motion.div>
+              </motion.button>
             ))}
           </AnimatePresence>
         </div>

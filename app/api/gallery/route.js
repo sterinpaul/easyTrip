@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/db";
-import Gallery from "@/models/Gallery";
+import LocationImage from "@/models/LocationImage";
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
@@ -14,13 +14,13 @@ export async function GET(req) {
     // I'll filter by user for consistent scoping
     const query = {};
     if (session.user.role !== 'admin') {
-      query.user = session.user.id;
+      query.createdBy = session.user.id;
     }
 
-    const photos = await Gallery.find(query).sort({ createdAt: -1 });
+    const photos = await LocationImage.find(query).sort({ createdAt: -1 });
     return NextResponse.json({ photos });
   } catch (error) {
-    console.error("Gallery Fetch Error:", error);
+    console.error("LocationImage Fetch Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
@@ -33,14 +33,14 @@ export async function POST(req) {
     const body = await req.json();
     await dbConnect();
 
-    const photo = await Gallery.create({
+    const photo = await LocationImage.create({
       ...body,
-      user: session.user.id,
+      createdBy: session.user.id,
     });
 
     return NextResponse.json(photo, { status: 201 });
   } catch (error) {
-    console.error("Gallery Create Error:", error);
+    console.error("LocationImage Create Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

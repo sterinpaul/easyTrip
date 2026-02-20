@@ -72,8 +72,8 @@ export default function GalleryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: data.newTitle,
-          location: data.newLocation,
-          image: imageUrl,
+          description: data.newLocation,
+          url: imageUrl,
         }),
       });
 
@@ -160,15 +160,15 @@ export default function GalleryPage() {
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="group relative aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-white/10"
               >
-                <img src={photo.image} alt={photo.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                <img src={photo.url} alt={photo.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
 
                 {/* Overlay */}
                 <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
                   <h3 className="text-white font-bold truncate">{photo.title}</h3>
-                  {photo.location && (
+                  {photo.description && (
                     <div className="flex items-center gap-1 text-xs text-gray-300">
                       <MapPin size={12} />
-                      <span className="truncate">{photo.location}</span>
+                      <span className="truncate">{photo.description}</span>
                     </div>
                   )}
 
