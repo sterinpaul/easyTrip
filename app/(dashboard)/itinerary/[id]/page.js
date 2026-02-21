@@ -1,12 +1,10 @@
 import Link from "next/link";
 import ItineraryView from "../../../../components/itinerary/ItineraryView";
-import ItineraryPlan from "../../../../components/itinerary/ItineraryPlan";
-// import ItineraryDetail from "../../../../components/itinerary/ItineraryDetail";
 
 // Metadata for the page
 export const metadata = {
-  title: 'Travel Itinerary | 3-Day Adventure',
-  description: 'Explore Borobudur Temple, Beaches, and Mountains in this 3-day journey.',
+  title: 'Travel Itinerary',
+  description: 'Explore Travel Itinerary',
 };
 
 export default async function Page({ params }) {
@@ -21,8 +19,6 @@ export default async function Page({ params }) {
       </Link>
       <div className="flex flex-col gap-5">
         <ItineraryView />
-        {/* <ItineraryPlan /> */}
-        {/* <ItineraryDetail id={id} /> */}
 
       </div>
     </>

@@ -33,6 +33,7 @@ export default function DashboardStatsPage() {
       icon: <Users size={24} className="text-blue-400" />,
       color: "from-blue-500/20 to-blue-600/5",
       borderColor: "border-blue-500/30",
+      href: "/clients",
     },
     {
       label: "Total Itineraries",
@@ -40,6 +41,7 @@ export default function DashboardStatsPage() {
       icon: <FileText size={24} className="text-purple-400" />,
       color: "from-purple-500/20 to-purple-600/5",
       borderColor: "border-purple-500/30",
+      href: "/itinerary",
     },
     {
       label: "Upcoming Trips",
@@ -47,13 +49,14 @@ export default function DashboardStatsPage() {
       icon: <Calendar size={24} className="text-green-400" />,
       color: "from-green-500/20 to-green-600/5",
       borderColor: "border-green-500/30",
+      href: "/itinerary?status=upcoming&page=1",
     },
     {
       label: "Past Trips",
       value: stats?.pastTrips || 0,
-      icon: <Clock size={24} className="text-white" />, // Changed icon color to white for new design
-      color: "from-orange-500 to-orange-600", // Adjusted color format
-      href: "#", // Added href
+      icon: <Clock size={24} className="text-white" />,
+      color: "from-orange-500 to-orange-600",
+      href: "/itinerary?status=past&page=1",
     },
   ];
 
