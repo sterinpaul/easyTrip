@@ -3,7 +3,8 @@
 import React from 'react';
 
 import { Bebas_Neue, Montserrat } from 'next/font/google';
-import { Plane, Car, PlaneTakeoff, Circle, Globe, Target, Landmark, Smartphone, MapPin, Phone } from 'lucide-react';
+import { Plane, Car, PlaneTakeoff, Award, Globe, Target, Landmark, Smartphone, MapPin, Phone } from 'lucide-react';
+
 
 
 const bebasNeue = Bebas_Neue({ subsets: ['latin'], weight: '400', variable: '--font-bebas' });
@@ -125,6 +126,18 @@ export default function ItineraryView() {
           <div className="flex-1 border-2 border-[#c8a84b] rounded-lg flex items-center justify-center p-3.5  transition-colors"><Car className="w-8 h-8 text-black dark:text-white" /></div>
         </div>
 
+        {/* Cost */}
+        <div className="bg-[#fafafa] dark:bg-[#1a1a1a] py-[14px] my-8 px-5 flex justify-between items-center border-t border-gray-200 dark:border-[#2a2a2a]">
+          <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-600 dark:text-[#aaa] flex items-center gap-[6px]">
+            <span><Award className="w-5 h-5 text-[#c8a84b]" /></span>
+            <span>180 REWARD POINTS</span>
+          </div>
+          <div className="text-right">
+            <div className="[font-family:var(--font-bebas)] text-[42px] text-[#c8a84b] leading-none">INR 18,000</div>
+            <div className="[font-family:var(--font-montserrat)] text-[11px] text-gray-500 dark:text-[#888]">PER PERSON</div>
+          </div>
+        </div>
+
         {/* Travel Details */}
         <div className="px-5">
           <div className="[font-family:var(--font-montserrat)] text-base font-black text-[#c8a84b] tracking-[2px] pt-[14px] px-5 pb-2 uppercase border-b-2 border-[#c8a84b] mx-0">TRAVEL DETAILS</div>
@@ -167,17 +180,7 @@ export default function ItineraryView() {
               <div className="[font-family:var(--font-montserrat)] text-base font-bold text-gray-900 dark:text-white tracking-[1px]">ASTO HOTELS KUALA LUMPUR</div>
               <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-500 dark:text-[#888] mt-1">- 3 NIGHTS</div>
             </div>
-            <div className="bg-[#fafafa] dark:bg-[#1a1a1a] py-[14px] px-5 flex justify-between items-center border-t border-gray-200 dark:border-[#2a2a2a]">
-              <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-600 dark:text-[#aaa] flex items-center gap-[6px]">
-                <span><Circle className="w-4 h-4 text-[#c8a84b]" /></span>
-                <span>180 REWARD POINTS</span>
-              </div>
-              <div className="text-right">
-                <div className="[font-family:var(--font-bebas)] text-[42px] text-[#c8a84b] leading-none">INR 18,000</div>
-                <div className="[font-family:var(--font-montserrat)] text-[11px] text-gray-500 dark:text-[#888]">PER PERSON</div>
-              </div>
-            </div>
-            <div className="[font-family:var(--font-montserrat)] text-[9px] text-gray-400 dark:text-[#555] text-center p-2 italic">
+            <div className="[font-family:var(--font-montserrat)] text-[9px] text-gray-400 dark:text-[#555] text-right p-2 italic border-t border-gray-200 dark:border-[#2a2a2a]">
               SIMILAR PROPERTIES WILL BE PROVIDED IN CASE THE QUOTED PROPERTY IS UNAVAILABLE
             </div>
           </div>
