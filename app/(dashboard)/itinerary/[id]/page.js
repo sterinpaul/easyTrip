@@ -1,4 +1,3 @@
-import Link from "next/link";
 import ItineraryView from "../../../../components/itinerary/ItineraryView";
 
 // Metadata for the page
@@ -9,9 +8,11 @@ export const metadata = {
 
 export default async function Page({ params }) {
   const { id } = await params;
+  const itinerary = {}
+
   return (
     <div className="flex flex-col gap-5">
-      <ItineraryView />
+      <ItineraryView itinerary={itinerary} />
     </div>
   );
 }

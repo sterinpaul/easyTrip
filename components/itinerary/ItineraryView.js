@@ -1,12 +1,11 @@
 "use client";
 
-import React from 'react';
-
 import { Bebas_Neue, Montserrat } from 'next/font/google';
-import { Plane, Car, PlaneTakeoff, Award, Globe, Target, Landmark, Smartphone, MapPin, Phone, Edit2, Trash2, Printer, Download } from 'lucide-react';
+import { Plane, Car, PlaneTakeoff, Award, Globe, Target, Landmark, Smartphone, MapPin, Phone, Edit2, Trash2, Printer, Download, Loader2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 
 
@@ -63,16 +62,28 @@ const InfoCard = ({ title, items, isInclude }) => (
   </div>
 );
 
-export default function ItineraryView({ onEdit, onDelete }) {
+export default function ItineraryView({ itinerary }) {
   const contentRef = useRef(null);
+  const router = useRouter();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const onEdit = () => {
+    router.push(`/itinerary/${itinerary.id}/edit`);
+  }
+
+  const onDelete = () => {
+    setIsDeleting(true);
+  }
 
   const handlePrint = () => {
     window.print();
   };
 
   const handleDownloadPDF = async () => {
-    if (!contentRef.current) return;
+    if (!contentRef.current || isDownloading) return;
 
+    setIsDownloading(true);
     try {
       // Temporarily add a class for PDF generation to ensure perfect backgrounds
       contentRef.current.classList.add('pdf-exporting');
@@ -123,6 +134,8 @@ export default function ItineraryView({ onEdit, onDelete }) {
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Check console for details: ' + error.message);
+    } finally {
+      setIsDownloading(false);
     }
   };
   return (
@@ -152,8 +165,9 @@ export default function ItineraryView({ onEdit, onDelete }) {
           <button onClick={handlePrint} className="px-4 py-2 flex items-center gap-2 [font-family:var(--font-montserrat)] text-xs font-bold border border-[#c8a84b] text-[#c8a84b] hover:bg-[#c8a84b] hover:text-white dark:hover:text-black rounded transition-colors">
             <Printer className="w-4 h-4" /> <span className="hidden sm:inline">PRINT</span>
           </button>
-          <button onClick={handleDownloadPDF} className="px-4 py-2 flex items-center gap-2 [font-family:var(--font-montserrat)] text-xs font-bold bg-[#c8a84b] text-black hover:bg-[#b09442] rounded shadow-[0_2px_10px_rgba(200,168,75,0.3)] transition-colors">
-            <Download className="w-4 h-4" /> <span className="hidden sm:inline">DOWNLOAD PDF</span>
+          <button onClick={handleDownloadPDF} disabled={isDownloading} className="px-4 py-2 flex items-center justify-center min-w-[150px] gap-2 [font-family:var(--font-montserrat)] text-xs font-bold bg-[#c8a84b] text-black hover:bg-[#b09442] rounded shadow-[0_2px_10px_rgba(200,168,75,0.3)] transition-colors disabled:opacity-70 disabled:cursor-not-allowed">
+            {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            <span className="hidden sm:inline">{isDownloading ? 'GENERATING...' : 'DOWNLOAD PDF'}</span>
           </button>
         </div>
       </div>
@@ -452,7 +466,7 @@ export default function ItineraryView({ onEdit, onDelete }) {
           </div>
 
           <div className="bg-red-50 dark:bg-[#1a0a0a] border border-red-700 dark:border-[#8b0000] rounded p-2.5 px-3.5 [font-family:var(--font-montserrat)] text-[10px] text-gray-600 dark:text-[#aaa] text-center my-4 italic">
-            ⚠️ THIS IS NOT THE FINAL DAY WISE ITINERARY – MAY SHUFFLE, BUT WILL COVER ALL SPECIFIED SIGHT SEEING
+            THIS IS NOT THE FINAL DAY WISE ITINERARY – MAY SHUFFLE, BUT WILL COVER ALL SPECIFIED SIGHT SEEING
           </div>
 
           {/* Payment Details */}
@@ -496,6 +510,36 @@ export default function ItineraryView({ onEdit, onDelete }) {
           ))}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {isDeleting && (
+        <div className="fixed inset-0 z-10000 flex items-center justify-center bg-black/60 backdrop-blur-sm print:hidden p-4">
+          <div className="bg-white dark:bg-[#111] p-6 rounded-lg w-full max-w-sm shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-gray-200 dark:border-[#222]">
+            <h3 className="[font-family:var(--font-montserrat)] text-lg font-bold text-gray-900 dark:text-white mb-2">Delete Itinerary?</h3>
+            <p className="[font-family:var(--font-montserrat)] text-[13px] text-gray-600 dark:text-[#aaa] mb-6 leading-relaxed">
+              Are you sure you want to permanently delete this itinerary? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setIsDeleting(false)}
+                className="px-5 py-2.5 rounded [font-family:var(--font-montserrat)] text-[13px] font-bold text-gray-700 dark:text-[#ccc] hover:bg-gray-100 dark:hover:bg-[#222] transition-colors"
+              >
+                CANCEL
+              </button>
+              <button
+                onClick={() => {
+                  // Actual delete API call goes here
+                  console.log('Delete confirmed');
+                  setIsDeleting(false);
+                }}
+                className="px-5 py-2.5 rounded [font-family:var(--font-montserrat)] text-[13px] font-bold bg-red-600 text-white hover:bg-red-700 transition-colors shadow-md flex items-center justify-center"
+              >
+                DELETE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
