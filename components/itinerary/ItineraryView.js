@@ -3,7 +3,11 @@
 import React from 'react';
 
 import { Bebas_Neue, Montserrat } from 'next/font/google';
-import { Plane, Car, PlaneTakeoff, Award, Globe, Target, Landmark, Smartphone, MapPin, Phone } from 'lucide-react';
+import { Plane, Car, PlaneTakeoff, Award, Globe, Target, Landmark, Smartphone, MapPin, Phone, Edit2, Trash2, Printer, Download } from 'lucide-react';
+import { toPng } from 'html-to-image';
+import jsPDF from 'jspdf';
+import { useRef } from 'react';
+
 
 
 
@@ -32,12 +36,12 @@ const DayCard = ({ day, title, items }) => (
   <div className="mb-4 border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
     <div className="flex justify-between items-center bg-[#fafafa] dark:bg-[#1a1a1a] py-3 px-[18px] border-b border-gray-200 dark:border-[#2a2a2a]">
       <div className="[font-family:var(--font-montserrat)] text-[15px] font-extrabold text-gray-900 dark:text-white underline uppercase tracking-[1px]">{title}</div>
-      <div className="bg-red-700 dark:bg-[#8b0000] text-gray-900 dark:text-white [font-family:var(--font-montserrat)] text-[13px] font-extrabold py-1 px-3.5 rounded tracking-[1px]">DAY {day}</div>
+      <div className="bg-[#c8a84b] text-gray-900 [font-family:var(--font-montserrat)] text-[13px] font-extrabold py-1 px-3.5 rounded tracking-[1px]">DAY {day}</div>
     </div>
     <div className="p-4 px-[18px] bg-white dark:bg-[#161616]">
       {items.map((item, i) => (
         <div className="flex items-start gap-2.5 mb-2 [font-family:var(--font-montserrat)] text-[13px] text-gray-700 dark:text-[#ccc] leading-[1.4]" key={i}>
-          <div className="w-3 h-3 min-w-[12px] bg-red-700 dark:bg-[#8b0000] rounded-full mt-1"></div>
+          <div className="w-3 h-3 min-w-[12px] bg-[#c8a84b] rounded-full mt-1"></div>
           <span>{item}</span>
         </div>
       ))}
@@ -47,7 +51,7 @@ const DayCard = ({ day, title, items }) => (
 
 const InfoCard = ({ title, items, isInclude }) => (
   <div className="border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
-    <div className="bg-red-700 dark:bg-[#8b0000] py-2.5 px-4 [font-family:var(--font-montserrat)] text-sm font-black tracking-[2px] text-gray-900 dark:text-white">{title}</div>
+    <div className={`${isInclude ? 'bg-[#c8a84b]' : 'bg-red-700'} py-2.5 px-4 [font-family:var(--font-montserrat)] text-sm font-black tracking-[2px] text-gray-900 dark:text-white`}>{title}</div>
     <div className="py-[14px] px-4 bg-white dark:bg-[#161616]">
       {items.map((item, i) => (
         <div className="flex gap-2 items-start mb-2 [font-family:var(--font-montserrat)] text-xs text-gray-700 dark:text-[#ccc]" key={i}>
@@ -59,343 +63,438 @@ const InfoCard = ({ title, items, isInclude }) => (
   </div>
 );
 
-export default function ItineraryView() {
+export default function ItineraryView({ onEdit, onDelete }) {
+  const contentRef = useRef(null);
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!contentRef.current) return;
+
+    try {
+      // Temporarily add a class for PDF generation to ensure perfect backgrounds
+      contentRef.current.classList.add('pdf-exporting');
+
+      // Add a slight delay to ensure fonts and styles are fully applied
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const dataUrl = await toPng(contentRef.current, {
+        quality: 1.0,
+        pixelRatio: 2,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#0a0a0a' : '#f5f5f5',
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
+        }
+      });
+
+      contentRef.current.classList.remove('pdf-exporting');
+
+      const imgData = dataUrl;
+      const img = new Image();
+      img.src = imgData;
+      await new Promise((resolve) => { img.onload = resolve; });
+      const canvas = { width: img.width, height: img.height };
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      // If content is longer than one page, jsPDF scale it to fit. 
+      // For a multi-page itinerary, we might need pagination, but fitting it to width is standard for this layout.
+      let position = 0;
+      let heightLeft = pdfHeight;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save('TravelHub24-Itinerary.pdf');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Check console for details: ' + error.message);
+    }
+  };
   return (
-    <div className={`font-['Segoe_UI',sans-serif] bg-[#f5f5f5] dark:bg-[#0a0a0a] text-gray-900 dark:text-white min-h-screen max-w-[900px] mx-auto p-0 ${bebasNeue.variable} ${montserrat.variable} transition-colors duration-300`}>
-      {/* PAGE 1 */}
-      <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] mb-1">
-        {/* Hero */}
-        <div className="relative flex flex-col justify-between gap-8 p-5 h-[350px] bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%), url('https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=900&q=80')" }}>
-          <div className="flex justify-between">
-            <picture>
-              <source srcSet="/logos/travelhub24_logo_800w_2x.webp 2x, /logos/travelhub24_logo_400w.webp 1x" type="image/webp" />
-              <img className='w-24 aspect-square' src="/logos/travelhub24_logo_400w.png" srcSet="/logos/travelhub24_logo_800w_2x.png 2x"
-                alt="TravelHub24 - Keep your dreams alive" width="200" height="auto" />
-            </picture>
+    <div className={`font-['Segoe_UI',sans-serif] bg-[#f5f5f5] dark:bg-[#0a0a0a] text-gray-900 dark:text-white print:absolute print:left-0 print:top-0 print:w-full print:z-9999 print:bg-white print:text-black print:m-0 print:p-0 min-h-screen max-w-[900px] mx-auto p-0 ${bebasNeue.variable} ${montserrat.variable} transition-colors duration-300`}>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        .pdf-exporting {
+          background-color: #0a0a0a !important; /* Ensure dark background is captured */
+          color: white !important;
+        }
+        .pdf-exporting * {
+          text-shadow: none !important; /* html2canvas struggles with drop-shadows */
+          box-shadow: none !important;
+        }
+      `}} />
+      {/* Action Bar (Hidden in Print) */}
+      <div className="print:hidden sticky top-0 z-50 bg-white/80 dark:bg-[#111]/80 backdrop-blur-md border-b border-gray-200 dark:border-[#222] p-4 mb-4 flex justify-between items-center rounded-b-lg shadow-sm">
+        <div className="flex gap-2">
+          <button onClick={onEdit} className="p-2 flex items-center gap-2 [font-family:var(--font-montserrat)] text-xs font-bold text-gray-600 dark:text-[#aaa] hover:text-[#c8a84b] dark:hover:text-[#c8a84b] hover:bg-gray-100 dark:hover:bg-[#1a1a1a] rounded transition-colors">
+            <Edit2 className="w-4 h-4" /> <span className="hidden sm:inline">EDIT</span>
+          </button>
+          <button onClick={onDelete} className="p-2 flex items-center gap-2 [font-family:var(--font-montserrat)] text-xs font-bold text-gray-600 dark:text-[#aaa] hover:text-red-500 hover:bg-red-50 dark:hover:bg-[#1a0a0a] rounded transition-colors">
+            <Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">DELETE</span>
+          </button>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={handlePrint} className="px-4 py-2 flex items-center gap-2 [font-family:var(--font-montserrat)] text-xs font-bold border border-[#c8a84b] text-[#c8a84b] hover:bg-[#c8a84b] hover:text-white dark:hover:text-black rounded transition-colors">
+            <Printer className="w-4 h-4" /> <span className="hidden sm:inline">PRINT</span>
+          </button>
+          <button onClick={handleDownloadPDF} className="px-4 py-2 flex items-center gap-2 [font-family:var(--font-montserrat)] text-xs font-bold bg-[#c8a84b] text-black hover:bg-[#b09442] rounded shadow-[0_2px_10px_rgba(200,168,75,0.3)] transition-colors">
+            <Download className="w-4 h-4" /> <span className="hidden sm:inline">DOWNLOAD PDF</span>
+          </button>
+        </div>
+      </div>
 
+      <div ref={contentRef} className="print:bg-white print:text-black">
+        {/* PAGE 1 */}
+        <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] mb-1">
+          {/* Hero */}
+          <div className="relative flex flex-col justify-between gap-8 p-5 h-[350px] bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%), url('https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=900&q=80')" }}>
+            <div className="flex justify-between">
+              <div className="border bg-black border-[#c8a84b] p-2 rounded-lg">
+                <picture>
+                  <source srcSet="/logos/travelhub24_logo_800w_2x.webp 2x, /logos/travelhub24_logo_400w.webp 1x" type="image/webp" />
+                  <img className='w-28 aspect-square' src="/logos/travelhub24_logo_400w.png" srcSet="/logos/travelhub24_logo_800w_2x.png 2x"
+                    alt="TravelHub24 - Keep your dreams alive" width="200" height="auto" />
+                </picture>
+              </div>
+
+              <div className="text-right">
+                <span className="[font-family:var(--font-montserrat)] text-[13px] tracking-[2px] drop-shadow-[2px_4px_20px_rgba(0,0,0,0.8)] text-white block">P R O P O S A L</span>
+                <div className="bg-[#c8a84b] text-black [font-family:var(--font-montserrat)] font-extrabold text-xs py-1 px-2.5 rounded inline-block mt-1">3N 4D</div>
+              </div>
+            </div>
+
+            <div>
+              <h1 className="[font-family:var(--font-bebas)] text-[96px] leading-[0.9] text-white/92 drop-shadow-[2px_4px_20px_rgba(0,0,0,0.8)] tracking-[4px] mb-2">MALAYSIA</h1>
+              <p className="[font-family:var(--font-montserrat)] text-[11px] text-white tracking-[1px]">PACKAGE ID : PU-KRA-APRIL01</p>
+            </div>
+          </div>
+
+          {/* Guest Details */}
+          <div className="grid grid-cols-2 bg-[#fafafa] dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a]">
+            <GuestCell label="Guest Name" value="SANOJ" highlight colSpan="col-span-2 md:col-span-1" />
+            <GuestCell label="Date" value="17/02/2026" />
+            <GuestCell label="No of Guests" value="2 ADULT" />
+            <GuestCell label="Tour Duration" value="04 DAYS" />
+            <GuestCell label="Arriving At" value="COK" />
+            <GuestCell label="Departing From" value="COK" />
+            <GuestCell label="Tour Start Date" value="11/04/2026" />
+            <GuestCell label="Tour End Date" value="19/03/2026" />
+          </div>
+
+          {/* Category Row */}
+          <div className="flex flex-col md:grid md:grid-cols-2 bg-[#fafafa] dark:bg-[#1a1a1a] border-x border-gray-200 dark:border-[#2a2a2a]">
+            <div className="border-r border-gray-200 dark:border-[#2a2a2a] p-4 [font-family:var(--font-montserrat)] text-[22px] font-black text-gray-900 dark:text-white tracking-[2px]">CATEGORY</div>
+            <div className="flex items-center gap-5 py-3 px-5 flex-wrap">
+              <CheckOption label="HONEYMOON" checked />
+              <CheckOption label="FAMILY" />
+              <CheckOption label="GROUP" />
+            </div>
+          </div>
+
+          {/* Type Row */}
+          <div className="flex flex-col md:grid md:grid-cols-2 bg-[#fafafa] dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a]">
+            <div className="border-r border-gray-200 dark:border-[#2a2a2a] p-4 [font-family:var(--font-montserrat)] text-[22px] font-black text-gray-900 dark:text-white tracking-[2px]">TYPE</div>
+            <div className="flex items-center gap-5 py-3 px-5 flex-wrap">
+              <CheckOption label="ECONOMY" />
+              <CheckOption label="STANDARD" checked />
+              <CheckOption label="PREMIUM" />
+            </div>
+          </div>
+
+          {/* Transportation */}
+          <div className="px-5">
+            <div className="[font-family:var(--font-montserrat)] text-base font-black text-[#c8a84b] tracking-[2px] pt-[14px] px-5 pb-2 uppercase border-b-2 border-[#c8a84b] mx-0">TRANSPORTATION</div>
+          </div>
+          <div className="grid grid-cols-3 gap-3 py-4 px-5">
+            <div className="flex-1 border-2 border-[#c8a84b] rounded-lg flex items-center justify-center p-3.5  transition-colors"><Plane className="w-8 h-8 text-black dark:text-white" /></div>
+            <div className="flex-1 border-2 border-[#c8a84b] rounded-lg flex items-center justify-center p-3.5  transition-colors"><Car className="w-8 h-8 text-black dark:text-white" /></div>
+          </div>
+
+          {/* Cost */}
+          <div className="bg-[#fafafa] dark:bg-[#1a1a1a] py-[14px] my-8 px-5 flex justify-between items-center border-t border-gray-200 dark:border-[#2a2a2a]">
+            <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-600 dark:text-[#aaa] flex items-center gap-[6px]">
+              <span><Award className="w-5 h-5 text-[#c8a84b]" /></span>
+              <span>180 REWARD POINTS</span>
+            </div>
             <div className="text-right">
-              <span className="[font-family:var(--font-montserrat)] text-[13px] tracking-[2px] drop-shadow-[2px_4px_20px_rgba(0,0,0,0.8)] text-white block">P R O P O S A L</span>
-              <div className="bg-[#c8a84b] text-black [font-family:var(--font-montserrat)] font-extrabold text-xs py-1 px-2.5 rounded inline-block mt-1">3N 4D</div>
+              <div className="[font-family:var(--font-bebas)] text-[42px] text-[#c8a84b] leading-none">INR 18,000</div>
+              <div className="[font-family:var(--font-montserrat)] text-[11px] text-gray-500 dark:text-[#888]">PER PERSON</div>
             </div>
           </div>
 
-          <div>
-            <h1 className="[font-family:var(--font-bebas)] text-[96px] leading-[0.9] text-white/92 drop-shadow-[2px_4px_20px_rgba(0,0,0,0.8)] tracking-[4px] mb-2">MALAYSIA</h1>
-            <p className="[font-family:var(--font-montserrat)] text-[11px] text-white tracking-[1px]">PACKAGE ID : PU-KRA-APRIL01</p>
+          {/* Travel Details */}
+          <div className="px-5">
+            <div className="[font-family:var(--font-montserrat)] text-base font-black text-[#c8a84b] tracking-[2px] pt-[14px] px-5 pb-2 uppercase border-b-2 border-[#c8a84b] mx-0">TRAVEL DETAILS</div>
           </div>
-        </div>
-
-        {/* Guest Details */}
-        <div className="grid grid-cols-2 bg-[#fafafa] dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a]">
-          <GuestCell label="Guest Name" value="SANOJ" highlight colSpan="col-span-2 md:col-span-1" />
-          <GuestCell label="Date" value="17/02/2026" />
-          <GuestCell label="No of Guests" value="2 ADULT" />
-          <GuestCell label="Tour Duration" value="04 DAYS" />
-          <GuestCell label="Arriving At" value="COK" />
-          <GuestCell label="Departing From" value="COK" />
-          <GuestCell label="Tour Start Date" value="11/04/2026" />
-          <GuestCell label="Tour End Date" value="19/03/2026" />
-        </div>
-
-        {/* Category Row */}
-        <div className="flex flex-col md:grid md:grid-cols-2 bg-[#fafafa] dark:bg-[#1a1a1a] border-x border-gray-200 dark:border-[#2a2a2a]">
-          <div className="border-r border-gray-200 dark:border-[#2a2a2a] p-4 [font-family:var(--font-montserrat)] text-[22px] font-black text-gray-900 dark:text-white tracking-[2px]">CATEGORY</div>
-          <div className="flex items-center gap-5 py-3 px-5 flex-wrap">
-            <CheckOption label="HONEYMOON" checked />
-            <CheckOption label="FAMILY" />
-            <CheckOption label="GROUP" />
-          </div>
-        </div>
-
-        {/* Type Row */}
-        <div className="flex flex-col md:grid md:grid-cols-2 bg-[#fafafa] dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a]">
-          <div className="border-r border-gray-200 dark:border-[#2a2a2a] p-4 [font-family:var(--font-montserrat)] text-[22px] font-black text-gray-900 dark:text-white tracking-[2px]">TYPE</div>
-          <div className="flex items-center gap-5 py-3 px-5 flex-wrap">
-            <CheckOption label="ECONOMY" />
-            <CheckOption label="STANDARD" checked />
-            <CheckOption label="PREMIUM" />
-          </div>
-        </div>
-
-        {/* Transportation */}
-        <div className="px-5">
-          <div className="[font-family:var(--font-montserrat)] text-base font-black text-[#c8a84b] tracking-[2px] pt-[14px] px-5 pb-2 uppercase border-b-2 border-[#c8a84b] mx-0">TRANSPORTATION</div>
-        </div>
-        <div className="grid grid-cols-3 gap-3 py-4 px-5">
-          <div className="flex-1 border-2 border-[#c8a84b] rounded-lg flex items-center justify-center p-3.5  transition-colors"><Plane className="w-8 h-8 text-black dark:text-white" /></div>
-          <div className="flex-1 border-2 border-[#c8a84b] rounded-lg flex items-center justify-center p-3.5  transition-colors"><Car className="w-8 h-8 text-black dark:text-white" /></div>
-        </div>
-
-        {/* Cost */}
-        <div className="bg-[#fafafa] dark:bg-[#1a1a1a] py-[14px] my-8 px-5 flex justify-between items-center border-t border-gray-200 dark:border-[#2a2a2a]">
-          <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-600 dark:text-[#aaa] flex items-center gap-[6px]">
-            <span><Award className="w-5 h-5 text-[#c8a84b]" /></span>
-            <span>180 REWARD POINTS</span>
-          </div>
-          <div className="text-right">
-            <div className="[font-family:var(--font-bebas)] text-[42px] text-[#c8a84b] leading-none">INR 18,000</div>
-            <div className="[font-family:var(--font-montserrat)] text-[11px] text-gray-500 dark:text-[#888]">PER PERSON</div>
-          </div>
-        </div>
-
-        {/* Travel Details */}
-        <div className="px-5">
-          <div className="[font-family:var(--font-montserrat)] text-base font-black text-[#c8a84b] tracking-[2px] pt-[14px] px-5 pb-2 uppercase border-b-2 border-[#c8a84b] mx-0">TRAVEL DETAILS</div>
-        </div>
-        <div className="m-[12px_20px_20px]">
-          <div className="border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
-            <div className="grid grid-cols-[60px_1fr] md:grid-cols-[60px_1fr_1px_1fr] items-center p-4 gap-4 bg-white dark:bg-[#161616]">
-              <div className="flex items-center justify-center"><PlaneTakeoff className="w-10 h-10 text-[#c8a84b]" /></div>
-              <div className="[font-family:var(--font-montserrat)]">
-                <div className="text-lg font-extrabold text-gray-900 dark:text-white">COK → KUL</div>
-                <div className="text-xs text-gray-600 dark:text-[#aaa] mt-0.5">MON, 16 APR 2026</div>
-                <div className="text-xl font-bold text-[#c8a84b] mt-1">00:30 → 07:20</div>
-                <div className="text-[10px] text-gray-500 dark:text-[#888] mt-1">BAGGAGE: 7 KGS | 0 KGS</div>
-              </div>
-              <div className="w-0 md:w-px bg-gray-200 dark:bg-[#2a2a2a] h-full min-h-[60px]"></div>
-              <div className="[font-family:var(--font-montserrat)]">
-                <div className="text-lg font-extrabold text-gray-900 dark:text-white">KUL → COK</div>
-                <div className="text-xs text-gray-600 dark:text-[#aaa] mt-0.5">THU, 19 APRIL 2026</div>
-                <div className="text-xl font-bold text-[#c8a84b] mt-1">20:25 → 22:00 +1 DAY</div>
-                <div className="text-[10px] text-gray-500 dark:text-[#888] mt-1">BAGGAGE: 7 KGS</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Hotel Details */}
-        <div className="px-5">
-          <div className="[font-family:var(--font-montserrat)] text-base font-black text-[#c8a84b] tracking-[2px] pt-[14px] px-5 pb-2 uppercase border-b-2 border-[#c8a84b] mx-0">HOTEL DETAILS</div>
-        </div>
-        <div className="m-[12px_20px_0] pb-5">
-          <div className="border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
-            <div className="bg-red-700 dark:bg-[#8b0000] py-2.5 px-5 flex justify-between items-center">
-              <span className="[font-family:var(--font-montserrat)] text-sm font-black tracking-[2px] text-gray-900 dark:text-white">HOTEL DETAILS</span>
-              <span className="bg-[#c8a84b] text-black [font-family:var(--font-montserrat)] text-[11px] font-extrabold py-1 px-3 rounded tracking-[1px]">STANDARD</span>
-            </div>
-            <div className="bg-white dark:bg-[#161616] p-5 text-center">
-              <div className="[font-family:var(--font-montserrat)] text-base font-bold text-gray-900 dark:text-white tracking-[1px]">PACIFIC EXPRESS HOTEL CENTRAL MARKET</div>
-              <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-500 dark:text-[#888] mt-1">- 3 NIGHTS</div>
-              <div className="[font-family:var(--font-montserrat)] text-sm text-[#c8a84b] font-bold my-2">OR</div>
-              <div className="[font-family:var(--font-montserrat)] text-base font-bold text-gray-900 dark:text-white tracking-[1px]">ASTO HOTELS KUALA LUMPUR</div>
-              <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-500 dark:text-[#888] mt-1">- 3 NIGHTS</div>
-            </div>
-            <div className="[font-family:var(--font-montserrat)] text-[9px] text-gray-400 dark:text-[#555] text-right p-2 italic border-t border-gray-200 dark:border-[#2a2a2a]">
-              SIMILAR PROPERTIES WILL BE PROVIDED IN CASE THE QUOTED PROPERTY IS UNAVAILABLE
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* PAGE 2 - ITINERARY */}
-      <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] mb-1 p-6">
-        <div className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white mb-5 border-l-[5px] border-[#c8a84b] pl-3">ITINERARY</div>
-
-        <DayCard day="1" title="Arrival & Putrajaya + Evening City Tour" items={[
-          "ARRIVAL AT KUALA LUMPUR INTERNATIONAL AIRPORT",
-          "MEET & GREET BY REPRESENTATIVE.",
-          "ENROUTE VISIT TO PUTRAJAYA (SHORT SIGHTSEEING TOUR).",
-          "VISIT THEAN HOU TEMPLE",
-          "PHOTO STOP AT PETRONAS TWIN TOWERS",
-          "ENJOY MUSICAL FOUNTAIN SHOW",
-          "OVERNIGHT STAY IN HOTEL",
-        ]} />
-
-        <DayCard day="2" title="Genting Highlands & Batu Caves" items={[
-          "BREAKFAST AT HOTEL.",
-          "FULL DAY TRIP TO GENTING HIGHLANDS",
-          "ENJOY SCENIC TWO-WAY CABLE CAR RIDE",
-          "VISIT BATU CAVES ENROUTE",
-          "RETURN TO HOTEL. OVERNIGHT STAY.",
-        ]} />
-
-        <DayCard day="3" title="Kuala Lumpur City Tour" items={[
-          "BREAKFAST AT HOTEL.",
-          "PHOTO STOP AT KL TOWER",
-          "VISIT NATIONAL MOSQUE OF MALAYSIA",
-          "EXPLORE MERDEKA SQUARE",
-          "VIEW SULTAN ABDUL SAMAD BUILDING",
-          "OVERNIGHT STAY IN HOTEL",
-        ]} />
-
-        <DayCard day="4" title="Departure" items={[
-          "BREAKFAST AT HOTEL & CHECK-OUT",
-          "CHECK-OUT AND TRANSFER TO AIRPORT",
-          "DEPARTURE WITH HAPPY MEMORIES.",
-        ]} />
-      </div>
-
-      {/* PAGE 3 - INCLUDES / EXCLUDES / HIGHLIGHTS */}
-      <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] mb-1 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-          <InfoCard title="INCLUDES THE FOLLOWING" isInclude items={[
-            "VISA.",
-            "3 NIGHTS ACCOMMODATION IN HOTEL (WITH BREAKFAST).",
-            "ALL MENTIONED SIGHTSEEING & TRANSFERS (PVT/SIC AS SPECIFIED).",
-            "ALL ENTRY TICKET",
-            "AIRPORT TRANSFERS: AIRPORT TO HOTELS.",
-          ]} />
-          <InfoCard title="EXCLUDES THE FOLLOWING" items={[
-            "FLIGHT FARE",
-            "TRAVEL INSURANCE.",
-            "EARLY CHECK IN AND LATE CHECK OUT.",
-            "TIPS AND GRATITUDE FOR STAFF/DRIVERS.",
-          ]} />
-        </div>
-
-        {/* Trip Highlights */}
-        <div className="flex mb-5 p-4 bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg">
-          <div className="[font-family:var(--font-bebas)] text-[22px] tracking-[3px] [writing-mode:vertical-rl] rotate-180 text-[#c8a84b] border-r-2 border-[#c8a84b] pr-2 mr-3">TRIP HIGHLIGHTS</div>
-          <div className="flex gap-2 flex-1 items-center flex-wrap">
-            {[
-              "https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=300&q=80",
-              "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&q=80",
-              "https://images.unsplash.com/photo-1568454537842-d933259bb258?w=300&q=80",
-              "https://images.unsplash.com/photo-1549880338-65ddcdfd017b?w=300&q=80",
-            ].map((src, i) => (
-              <div className="flex-1 min-w-[100px] h-[100px] rounded-lg overflow-hidden border-2 border-gray-200 dark:border-[#2a2a2a]" key={i}>
-                <img src={src} alt={`highlight ${i + 1}`} className="w-full h-full object-cover" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Offers */}
-        <div className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white mb-5 border-l-[5px] border-[#c8a84b] pl-3">OFFERS AND DISCOUNTS</div>
-        <div className="bg-gradient-to-br from-amber-50 to-white dark:from-[#1a1a1a] dark:to-[#0d0d0d] border border-[#c8a84b] rounded-lg p-5 flex gap-5 items-center">
-          <div className="flex-1">
-            <div className="flex items-center justify-center md:justify-start gap-4 mb-1">
-              <Globe className="w-10 h-10 text-[#c8a84b]" />
-              <div>
-                <div className="[font-family:var(--font-montserrat)] text-[11px] text-[#c8a84b] tracking-[2px] uppercase mb-1">GET A CHANCE TO WIN AN</div>
-                <div className="[font-family:var(--font-bebas)] text-[42px] text-gray-900 dark:text-white leading-none">INTERNATIONAL<br />TRIP!</div>
-              </div>
-            </div>
-          </div>
-          <div className="w-[1px] bg-gray-300 dark:bg-[#333] min-h-[80px]"></div>
-          <div className="flex-1 text-right">
-            <div className="flex justify-end gap-1.5 items-center [font-family:var(--font-montserrat)] text-[13px] font-bold text-[#c8a84b] tracking-[1px] uppercase"><Target className="w-5 h-5 mb-0.5 text-[#c8a84b]" /> LUCKY DRAW CONTEST ALERT!</div>
-            <div className="[font-family:var(--font-montserrat)] text-[11px] text-gray-600 dark:text-[#aaa] mt-2 leading-[1.6]">
-              <strong className="text-gray-900 dark:text-white">HOW TO PARTICIPATE? IT'S SIMPLE!</strong><br />
-              BOOK ANY ONE TRAVEL PACKAGE FROM OUR COMPANY BEFORE 31 DECEMBER 2025..<br />
-              THAT'S IT - YOU'RE AUTOMATICALLY ENTERED INTO THE LUCKY DRAW!
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* PAGE 4 - T&C */}
-      <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] mb-1 p-6">
-        <div className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white mb-5 border-l-[5px] border-[#c8a84b] pl-3">TERMS AND CONDITIONS</div>
-
-        {/* Payment Policy */}
-        <div className="mb-5">
-          <div className="[font-family:var(--font-montserrat)] text-sm font-extrabold text-[#c8a84b] tracking-[2px] uppercase mb-3">PAYMENT POLICY</div>
-          <table className="w-full border-collapse mb-4">
-            <thead>
-              <tr>
-                <th className="bg-red-700 dark:bg-[#8b0000] text-white [font-family:var(--font-montserrat)] text-[11px] font-bold tracking-[1px] uppercase py-2.5 px-3.5 text-left border border-gray-300 dark:border-[#333]">PAYMENT SCHEDULE</th>
-                <th className="bg-red-700 dark:bg-[#8b0000] text-white [font-family:var(--font-montserrat)] text-[11px] font-bold tracking-[1px] uppercase py-2.5 px-3.5 text-left border border-gray-300 dark:border-[#333]">AMOUNT</th>
-                <th className="bg-red-700 dark:bg-[#8b0000] text-white [font-family:var(--font-montserrat)] text-[11px] font-bold tracking-[1px] uppercase py-2.5 px-3.5 text-left border border-gray-300 dark:border-[#333]">REMARK</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="bg-white dark:bg-[#161616] text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]">ADVANCE PAYMENT</td>
-                <td className="bg-white dark:bg-[#161616] text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]">20% OF TOUR COST + FLIGHT FARE</td>
-                <td className="bg-white dark:bg-[#161616] text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]">AT THE TIME OF BOOKING</td>
-              </tr>
-              <tr className="[&_td]:bg-[#fafafa] dark:[&_td]:bg-[#1a1a1a]">
-                <td className="text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]">FINAL PAYMENT</td>
-                <td className="text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]">FULL PAYMENT</td>
-                <td className="text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]">30 DAYS BEFORE THE TOUR</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Cancellation Policy */}
-        <div className="mb-5">
-          <div className="[font-family:var(--font-montserrat)] text-sm font-extrabold text-[#c8a84b] tracking-[2px] uppercase mb-2">CANCELLATION POLICY</div>
-          <div className="[font-family:var(--font-montserrat)] text-[11px] text-gray-500 dark:text-[#888] mb-3 leading-[1.6]">
-            IN ANY CASE OF CANCELLATION OF BOOKING, IT MUST BE INFORMED IN ADVANCE TO TRAVEL HUB 24 BY WRITING.
-            CANCELLATION WILL BE EFFECTIVE ONLY ON THE DATE AND TIME OF RECEIPT OF CANCELLATION LETTER.
-            THE FOLLOWING CANCELLATION CHARGES SHALL APPLY AS PER THE PERIOD OF CANCELLATION TERMS.
-          </div>
-          <table className="w-full border-collapse mb-4">
-            <thead>
-              <tr>
-                <th className="bg-red-700 dark:bg-[#8b0000] text-white [font-family:var(--font-montserrat)] text-[11px] font-bold tracking-[1px] uppercase py-2.5 px-3.5 text-left border border-gray-300 dark:border-[#333]">TIME PERIOD BEFORE DEPARTURE</th>
-                <th className="bg-red-700 dark:bg-[#8b0000] text-white [font-family:var(--font-montserrat)] text-[11px] font-bold tracking-[1px] uppercase py-2.5 px-3.5 text-left border border-gray-300 dark:border-[#333]">CANCELLATION CHARGE</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                ["AIRLINE TICKETS", "NON-REFUNDABLE"],
-                ["TRAIN TICKETS", "IRCTC CANCELLATION POLICY"],
-                ["BEFORE 30 DAYS", "0% CANCELLATION CHARGES"],
-                ["BETWEEN 30 DAYS TO 16 DAYS", "20% OF TOUR COST"],
-                ["BETWEEN 15 DAYS TO 08 DAYS", "50% OF TOUR COST"],
-                ["PRIOR TO 7 DAYS", "100% OF TOUR COST"],
-              ].map(([period, charge], i) => (
-                <tr key={i} className={i % 2 !== 0 ? "[&_td]:bg-[#fafafa] dark:[&_td]:bg-[#1a1a1a]" : ""}>
-                  <td className={`${i % 2 === 0 ? 'bg-white dark:bg-[#161616]' : ''} text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]`}>{period}</td>
-                  <td className={`${i % 2 === 0 ? 'bg-white dark:bg-[#161616]' : ''} text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]`}>{charge}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="[font-family:var(--font-montserrat)] text-[10px] text-gray-500 dark:text-[#888] mb-3 leading-[1.6]">
-          PLEASE READ AND AGREE TO OUR CANCELLATION POLICY BEFORE CONFIRMING YOUR BOOKING. CANCELLATIONS MADE WITHIN THE
-          SPECIFIED PERIOD MAY BE ELIGIBLE FOR A REFUND BASED ON APPLICABLE CHARGES. NO REFUNDS WILL BE GIVEN FOR NO-SHOWS
-          OR CANCELLATIONS WITHIN 10 DAYS OF DEPARTURE. REFUNDS, IF APPLICABLE WILL BE PROCESSED PROMPTLY AS DETERMINED BY THE COMPANY.
-        </div>
-
-        <div className="bg-red-50 dark:bg-[#1a0a0a] border border-red-700 dark:border-[#8b0000] rounded p-2.5 px-3.5 [font-family:var(--font-montserrat)] text-[10px] text-gray-600 dark:text-[#aaa] text-center my-4 italic">
-          ⚠️ THIS IS NOT THE FINAL DAY WISE ITINERARY – MAY SHUFFLE, BUT WILL COVER ALL SPECIFIED SIGHT SEEING
-        </div>
-
-        {/* Payment Details */}
-        <div className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white mb-5 border-l-[5px] border-[#c8a84b] pl-3 mt-5">PAYMENT DETAILS</div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-          <div className="bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-5">
-            <div className="[font-family:var(--font-montserrat)] text-base font-black text-[#c8a84b] tracking-[1px] mb-[14px] uppercase">Bank Account Details</div>
-            <div className="[font-family:var(--font-montserrat)] flex gap-1.5 items-center text-[13px] text-gray-700 dark:text-[#ccc] mb-1.5"><Landmark className="w-4 h-4 text-[#c8a84b]" /> <span className="text-gray-900 dark:text-white font-bold ml-1">HDFC BANK</span></div>
-            <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-700 dark:text-[#ccc] mb-1.5">Account No: <span className="text-gray-900 dark:text-white font-bold">50200099241251</span></div>
-            <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-700 dark:text-[#ccc] mb-1.5">IFSC Code: <span className="text-gray-900 dark:text-white font-bold">HDFC0000520</span></div>
-            <div className="mt-3.5 py-2.5 px-3 bg-[#fafafa] dark:bg-[#1a1a1a] rounded-md [font-family:var(--font-montserrat)] text-[11px] text-gray-500 dark:text-[#888] flex gap-2 items-center">
-              <Smartphone className="w-4 h-4 text-[#c8a84b]" /> Also accepts: BHIM UPI | G Pay | Paytm | PhonePe
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-5">
-            <div className="flex gap-2 mb-3 items-start">
-              <div className="mt-0.5"><MapPin className="w-5 h-5 text-[#c8a84b]" fill="currentColor" /></div>
-              <div>
-                <div className="[font-family:var(--font-montserrat)] text-[13px] font-bold text-gray-900 dark:text-white leading-[1.6]">
-                  BRINDAVAN BUSINESS CENTRE,<br />
-                  MANIMALA ROAD,<br />
-                  PONEKKARA, EDAPPALLY,<br />
-                  ERNAKULAM, KERALA.
+          <div className="m-[12px_20px_20px]">
+            <div className="border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
+              <div className="grid grid-cols-[60px_1fr] md:grid-cols-[60px_1fr_1px_1fr] items-center p-4 gap-4 bg-white dark:bg-[#161616]">
+                <div className="flex items-center justify-center"><PlaneTakeoff className="w-10 h-10 text-[#c8a84b]" /></div>
+                <div className="[font-family:var(--font-montserrat)]">
+                  <div className="text-lg font-extrabold text-gray-900 dark:text-white">COK → KUL</div>
+                  <div className="text-xs text-gray-600 dark:text-[#aaa] mt-0.5">MON, 16 APR 2026</div>
+                  <div className="text-xl font-bold text-[#c8a84b] mt-1">00:30 → 07:20</div>
+                  <div className="text-[10px] text-gray-500 dark:text-[#888] mt-1">BAGGAGE: 7 KGS | 0 KGS</div>
+                </div>
+                <div className="w-0 md:w-px bg-gray-200 dark:bg-[#2a2a2a] h-full min-h-[60px]"></div>
+                <div className="[font-family:var(--font-montserrat)]">
+                  <div className="text-lg font-extrabold text-gray-900 dark:text-white">KUL → COK</div>
+                  <div className="text-xs text-gray-600 dark:text-[#aaa] mt-0.5">THU, 19 APRIL 2026</div>
+                  <div className="text-xl font-bold text-[#c8a84b] mt-1">20:25 → 22:00 +1 DAY</div>
+                  <div className="text-[10px] text-gray-500 dark:text-[#888] mt-1">BAGGAGE: 7 KGS</div>
                 </div>
               </div>
             </div>
-            <div className="flex gap-2 items-center">
-              <div className="ml-0.5"><Globe className="w-4 h-4 text-[#c8a84b]" /></div>
-              <a href="https://www.travelhub24.in" className="[font-family:var(--font-montserrat)] text-[13px] text-[#c8a84b] no-underline font-semibold">www.travelhub24.in</a>
+          </div>
+
+          {/* Hotel Details */}
+          <div className="px-5">
+            <div className="[font-family:var(--font-montserrat)] text-base font-black text-[#c8a84b] tracking-[2px] pt-[14px] px-5 pb-2 uppercase border-b-2 border-[#c8a84b] mx-0">HOTEL DETAILS</div>
+          </div>
+          <div className="m-[12px_20px_0] pb-5">
+            <div className="border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
+              <div className="py-2.5 px-5 flex justify-between items-center">
+                <span className="ml-auto bg-[#c8a84b] text-black [font-family:var(--font-montserrat)] text-[11px] font-extrabold py-1 px-3 rounded tracking-[1px]">STANDARD</span>
+              </div>
+              <div className="bg-white dark:bg-[#161616] p-5 text-center">
+                <div className="[font-family:var(--font-montserrat)] text-base font-bold text-gray-900 dark:text-white tracking-[1px]">PACIFIC EXPRESS HOTEL CENTRAL MARKET</div>
+                <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-500 dark:text-[#888] mt-1">- 3 NIGHTS</div>
+                <div className="[font-family:var(--font-montserrat)] text-sm text-[#c8a84b] font-bold my-2">OR</div>
+                <div className="[font-family:var(--font-montserrat)] text-base font-bold text-gray-900 dark:text-white tracking-[1px]">ASTO HOTELS KUALA LUMPUR</div>
+                <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-500 dark:text-[#888] mt-1">- 3 NIGHTS</div>
+              </div>
+              <div className="[font-family:var(--font-montserrat)] text-[9px] text-gray-400 dark:text-[#555] text-right p-2 italic border-t border-gray-200 dark:border-[#2a2a2a]">
+                SIMILAR PROPERTIES WILL BE PROVIDED IN CASE THE QUOTED PROPERTY IS UNAVAILABLE
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Footer Phone Numbers */}
-      <div className="bg-red-700 dark:bg-[#8b0000] py-[14px] px-5 flex justify-center gap-5 flex-wrap">
-        {["+91 6238882424", "+91 7902220707", "+91 7902220020", "+91 9778007070"].map((phone, i) => (
-          <div className="flex items-center gap-1.5 [font-family:var(--font-montserrat)] text-sm font-extrabold text-white tracking-[1px]" key={i}><Phone className="w-4 h-4 text-white" fill="currentColor" /> {phone}</div>
-        ))}
+        {/* PAGE 2 - ITINERARY */}
+        <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] mb-1 p-6">
+          <div className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white mb-5 border-l-[5px] border-[#c8a84b] pl-3">ITINERARY</div>
+
+          <DayCard day="1" title="Arrival & Putrajaya + Evening City Tour" items={[
+            "ARRIVAL AT KUALA LUMPUR INTERNATIONAL AIRPORT",
+            "MEET & GREET BY REPRESENTATIVE.",
+            "ENROUTE VISIT TO PUTRAJAYA (SHORT SIGHTSEEING TOUR).",
+            "VISIT THEAN HOU TEMPLE",
+            "PHOTO STOP AT PETRONAS TWIN TOWERS",
+            "ENJOY MUSICAL FOUNTAIN SHOW",
+            "OVERNIGHT STAY IN HOTEL",
+          ]} />
+
+          <DayCard day="2" title="Genting Highlands & Batu Caves" items={[
+            "BREAKFAST AT HOTEL.",
+            "FULL DAY TRIP TO GENTING HIGHLANDS",
+            "ENJOY SCENIC TWO-WAY CABLE CAR RIDE",
+            "VISIT BATU CAVES ENROUTE",
+            "RETURN TO HOTEL. OVERNIGHT STAY.",
+          ]} />
+
+          <DayCard day="3" title="Kuala Lumpur City Tour" items={[
+            "BREAKFAST AT HOTEL.",
+            "PHOTO STOP AT KL TOWER",
+            "VISIT NATIONAL MOSQUE OF MALAYSIA",
+            "EXPLORE MERDEKA SQUARE",
+            "VIEW SULTAN ABDUL SAMAD BUILDING",
+            "OVERNIGHT STAY IN HOTEL",
+          ]} />
+
+          <DayCard day="4" title="Departure" items={[
+            "BREAKFAST AT HOTEL & CHECK-OUT",
+            "CHECK-OUT AND TRANSFER TO AIRPORT",
+            "DEPARTURE WITH HAPPY MEMORIES.",
+          ]} />
+        </div>
+
+        {/* PAGE 3 - INCLUDES / EXCLUDES / HIGHLIGHTS */}
+        <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] mb-1 p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+            <InfoCard title="INCLUDES THE FOLLOWING" isInclude items={[
+              "VISA.",
+              "3 NIGHTS ACCOMMODATION IN HOTEL (WITH BREAKFAST).",
+              "ALL MENTIONED SIGHTSEEING & TRANSFERS (PVT/SIC AS SPECIFIED).",
+              "ALL ENTRY TICKET",
+              "AIRPORT TRANSFERS: AIRPORT TO HOTELS.",
+            ]} />
+            <InfoCard title="EXCLUDES THE FOLLOWING" items={[
+              "FLIGHT FARE",
+              "TRAVEL INSURANCE.",
+              "EARLY CHECK IN AND LATE CHECK OUT.",
+              "TIPS AND GRATITUDE FOR STAFF/DRIVERS.",
+            ]} />
+          </div>
+
+          {/* Trip Highlights */}
+          <div className="flex mb-5 p-4 bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg">
+            <div className="[font-family:var(--font-bebas)] text-[22px] tracking-[3px] [writing-mode:vertical-rl] rotate-180 text-[#c8a84b] border-r-2 border-[#c8a84b] pr-2 mr-3">TRIP HIGHLIGHTS</div>
+            <div className="flex gap-2 flex-1 items-center flex-wrap">
+              {[
+                "https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=300&q=80",
+                "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&q=80",
+                "https://images.unsplash.com/photo-1568454537842-d933259bb258?w=300&q=80",
+                "https://images.unsplash.com/photo-1549880338-65ddcdfd017b?w=300&q=80",
+              ].map((src, i) => (
+                <div className="flex-1 min-w-[100px] h-[100px] rounded-lg overflow-hidden border-2 border-gray-200 dark:border-[#2a2a2a]" key={i}>
+                  <img src={src} alt={`highlight ${i + 1}`} className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Offers */}
+          <div className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white mb-5 border-l-[5px] border-[#c8a84b] pl-3">OFFERS AND DISCOUNTS</div>
+          <div className="bg-linear-to-br from-amber-50 to-white dark:from-[#1a1a1a] dark:to-[#0d0d0d] border border-[#c8a84b] rounded-lg p-5 flex gap-5 items-center">
+            <div className="flex-1">
+              <div className="flex items-center justify-center md:justify-start gap-4 mb-1">
+                <Globe className="w-10 h-10 text-[#c8a84b]" />
+                <div>
+                  <div className="[font-family:var(--font-montserrat)] text-[11px] text-[#c8a84b] tracking-[2px] uppercase mb-1">GET A CHANCE TO WIN AN</div>
+                  <div className="[font-family:var(--font-bebas)] text-[42px] text-gray-900 dark:text-white leading-none">INTERNATIONAL<br />TRIP!</div>
+                </div>
+              </div>
+            </div>
+            <div className="w-px bg-gray-300 dark:bg-[#333] min-h-[80px]"></div>
+            <div className="flex-1 text-right">
+              <div className="flex justify-end gap-1.5 items-center [font-family:var(--font-montserrat)] text-[13px] font-bold text-[#c8a84b] tracking-[1px] uppercase"><Target className="w-5 h-5 mb-0.5 text-[#c8a84b]" /> LUCKY DRAW CONTEST ALERT!</div>
+              <div className="[font-family:var(--font-montserrat)] text-[11px] text-gray-600 dark:text-[#aaa] mt-2 leading-[1.6]">
+                <strong className="text-gray-900 dark:text-white">HOW TO PARTICIPATE? IT'S SIMPLE!</strong><br />
+                BOOK ANY ONE TRAVEL PACKAGE FROM OUR COMPANY BEFORE 31 DECEMBER 2025..<br />
+                THAT'S IT - YOU'RE AUTOMATICALLY ENTERED INTO THE LUCKY DRAW!
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 4 - T&C */}
+        <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] mb-1 p-6">
+          <div className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white mb-5 border-l-[5px] border-[#c8a84b] pl-3">TERMS AND CONDITIONS</div>
+
+          {/* Payment Policy */}
+          <div className="mb-5">
+            <div className="[font-family:var(--font-montserrat)] text-sm font-extrabold text-[#c8a84b] tracking-[2px] uppercase mb-3">PAYMENT POLICY</div>
+            <table className="w-full border-collapse mb-4">
+              <thead>
+                <tr>
+                  <th className="bg-[#c8a84b] text-black [font-family:var(--font-montserrat)] text-[11px] font-bold tracking-[1px] uppercase py-2.5 px-3.5 text-left border border-gray-300 dark:border-[#333]">PAYMENT SCHEDULE</th>
+                  <th className="bg-[#c8a84b] text-black [font-family:var(--font-montserrat)] text-[11px] font-bold tracking-[1px] uppercase py-2.5 px-3.5 text-left border border-gray-300 dark:border-[#333]">AMOUNT</th>
+                  <th className="bg-[#c8a84b] text-black [font-family:var(--font-montserrat)] text-[11px] font-bold tracking-[1px] uppercase py-2.5 px-3.5 text-left border border-gray-300 dark:border-[#333]">REMARK</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="bg-white dark:bg-[#161616] text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]">ADVANCE PAYMENT</td>
+                  <td className="bg-white dark:bg-[#161616] text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]">20% OF TOUR COST + FLIGHT FARE</td>
+                  <td className="bg-white dark:bg-[#161616] text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]">AT THE TIME OF BOOKING</td>
+                </tr>
+                <tr className="[&_td]:bg-[#fafafa] dark:[&_td]:bg-[#1a1a1a]">
+                  <td className="text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]">FINAL PAYMENT</td>
+                  <td className="text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]">FULL PAYMENT</td>
+                  <td className="text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]">30 DAYS BEFORE THE TOUR</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Cancellation Policy */}
+          <div className="mb-5">
+            <div className="[font-family:var(--font-montserrat)] text-sm font-extrabold text-[#c8a84b] tracking-[2px] uppercase mb-2">CANCELLATION POLICY</div>
+            <div className="[font-family:var(--font-montserrat)] text-[11px] text-gray-500 dark:text-[#888] mb-3 leading-[1.6]">
+              IN ANY CASE OF CANCELLATION OF BOOKING, IT MUST BE INFORMED IN ADVANCE TO TRAVEL HUB 24 BY WRITING.
+              CANCELLATION WILL BE EFFECTIVE ONLY ON THE DATE AND TIME OF RECEIPT OF CANCELLATION LETTER.
+              THE FOLLOWING CANCELLATION CHARGES SHALL APPLY AS PER THE PERIOD OF CANCELLATION TERMS.
+            </div>
+            <table className="w-full border-collapse mb-4">
+              <thead>
+                <tr>
+                  <th className="bg-[#c8a84b] text-black [font-family:var(--font-montserrat)] text-[11px] font-bold tracking-[1px] uppercase py-2.5 px-3.5 text-left border border-gray-300 dark:border-[#333]">TIME PERIOD BEFORE DEPARTURE</th>
+                  <th className="bg-[#c8a84b] text-black [font-family:var(--font-montserrat)] text-[11px] font-bold tracking-[1px] uppercase py-2.5 px-3.5 text-left border border-gray-300 dark:border-[#333]">CANCELLATION CHARGE</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["AIRLINE TICKETS", "NON-REFUNDABLE"],
+                  ["TRAIN TICKETS", "IRCTC CANCELLATION POLICY"],
+                  ["BEFORE 30 DAYS", "0% CANCELLATION CHARGES"],
+                  ["BETWEEN 30 DAYS TO 16 DAYS", "20% OF TOUR COST"],
+                  ["BETWEEN 15 DAYS TO 08 DAYS", "50% OF TOUR COST"],
+                  ["PRIOR TO 7 DAYS", "100% OF TOUR COST"],
+                ].map(([period, charge], i) => (
+                  <tr key={i} className={i % 2 !== 0 ? "[&_td]:bg-[#fafafa] dark:[&_td]:bg-[#1a1a1a]" : ""}>
+                    <td className={`${i % 2 === 0 ? 'bg-white dark:bg-[#161616]' : ''} text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]`}>{period}</td>
+                    <td className={`${i % 2 === 0 ? 'bg-white dark:bg-[#161616]' : ''} text-gray-700 dark:text-[#ccc] [font-family:var(--font-montserrat)] text-xs py-2.5 px-3.5 border border-gray-200 dark:border-[#2a2a2a]`}>{charge}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="[font-family:var(--font-montserrat)] text-[10px] text-gray-500 dark:text-[#888] mb-3 leading-[1.6]">
+            PLEASE READ AND AGREE TO OUR CANCELLATION POLICY BEFORE CONFIRMING YOUR BOOKING. CANCELLATIONS MADE WITHIN THE
+            SPECIFIED PERIOD MAY BE ELIGIBLE FOR A REFUND BASED ON APPLICABLE CHARGES. NO REFUNDS WILL BE GIVEN FOR NO-SHOWS
+            OR CANCELLATIONS WITHIN 10 DAYS OF DEPARTURE. REFUNDS, IF APPLICABLE WILL BE PROCESSED PROMPTLY AS DETERMINED BY THE COMPANY.
+          </div>
+
+          <div className="bg-red-50 dark:bg-[#1a0a0a] border border-red-700 dark:border-[#8b0000] rounded p-2.5 px-3.5 [font-family:var(--font-montserrat)] text-[10px] text-gray-600 dark:text-[#aaa] text-center my-4 italic">
+            ⚠️ THIS IS NOT THE FINAL DAY WISE ITINERARY – MAY SHUFFLE, BUT WILL COVER ALL SPECIFIED SIGHT SEEING
+          </div>
+
+          {/* Payment Details */}
+          <div className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white mb-5 border-l-[5px] border-[#c8a84b] pl-3 mt-5">PAYMENT DETAILS</div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+            <div className="bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-5">
+              <div className="[font-family:var(--font-montserrat)] text-base font-black text-[#c8a84b] tracking-[1px] mb-[14px] uppercase">Bank Account Details</div>
+              <div className="[font-family:var(--font-montserrat)] flex gap-1.5 items-center text-[13px] text-gray-700 dark:text-[#ccc] mb-1.5"><Landmark className="w-4 h-4 text-[#c8a84b]" /> <span className="text-gray-900 dark:text-white font-bold ml-1">HDFC BANK</span></div>
+              <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-700 dark:text-[#ccc] mb-1.5">Account No: <span className="text-gray-900 dark:text-white font-bold">50200099241251</span></div>
+              <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-700 dark:text-[#ccc] mb-1.5">IFSC Code: <span className="text-gray-900 dark:text-white font-bold">HDFC0000520</span></div>
+              <div className="mt-3.5 py-2.5 px-3 bg-[#fafafa] dark:bg-[#1a1a1a] rounded-md [font-family:var(--font-montserrat)] text-[11px] text-gray-500 dark:text-[#888] flex gap-2 items-center">
+                <Smartphone className="w-4 h-4 text-[#c8a84b]" /> Also accepts: BHIM UPI | G Pay | Paytm | PhonePe
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-5">
+              <div className="flex gap-2 mb-3 items-start">
+                <div className="mt-0.5"><MapPin className="w-5 h-5 text-[#c8a84b]" fill="currentColor" /></div>
+                <div>
+                  <div className="[font-family:var(--font-montserrat)] text-[13px] font-bold text-gray-900 dark:text-white leading-[1.6]">
+                    BRINDAVAN BUSINESS CENTRE,<br />
+                    MANIMALA ROAD,<br />
+                    PONEKKARA, EDAPPALLY,<br />
+                    ERNAKULAM, KERALA.
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 items-center">
+                <div className="ml-0.5"><Globe className="w-4 h-4 text-[#c8a84b]" /></div>
+                <a href="https://www.travelhub24.in" className="[font-family:var(--font-montserrat)] text-[13px] text-[#c8a84b] no-underline font-semibold">www.travelhub24.in</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Phone Numbers */}
+        <div className="bg-[#c8a84b] py-[14px] px-5 flex justify-center gap-5 flex-wrap">
+          {["+91 6238882424", "+91 7902220707", "+91 7902220020", "+91 9778007070"].map((phone, i) => (
+            <div className="flex items-center gap-1.5 [font-family:var(--font-montserrat)] text-sm font-extrabold text-black tracking-[1px]" key={i}><Phone className="w-4 h-4 text-black" fill="currentColor" /> {phone}</div>
+          ))}
+        </div>
       </div>
     </div>
   );

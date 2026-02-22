@@ -10,17 +10,8 @@ export const metadata = {
 export default async function Page({ params }) {
   const { id } = await params;
   return (
-    <>
-      <Link
-        href={`/itinerary/${id}/edit`}
-        className="mt-5 inline-block text-purple-500 hover:text-purple-600 font-medium transition-colors"
-      >
-        Edit &rarr;
-      </Link>
-      <div className="flex flex-col gap-5">
-        <ItineraryView />
-
-      </div>
-    </>
+    <div className="flex flex-col gap-5">
+      <ItineraryView />
+    </div>
   );
 }
