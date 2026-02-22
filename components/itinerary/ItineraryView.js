@@ -128,8 +128,8 @@ export default function ItineraryView({ itinerary }) {
 
         // Generate high quality PNG for this specific block
         const dataUrl = await toPng(chunk, {
-          quality: 1.0,
-          pixelRatio: 2,
+          quality: 0.85,
+          pixelRatio: 1.5,
           // backgroundColor: document.documentElement.classList.contains('dark') ? '#0a0a0a' : '#ffffff',
           style: {
             transform: 'scale(1)',
@@ -158,7 +158,7 @@ export default function ItineraryView({ itinerary }) {
 
         // If the chunk fits on the current page
         if (cursorY + chunkPdfHeight <= pdfPageHeight - pageMarginBottom) {
-          pdf.addImage(dataUrl, 'PNG', drawX, cursorY, drawWidth, chunkPdfHeight);
+          pdf.addImage(dataUrl, 'PNG', drawX, cursorY, drawWidth, chunkPdfHeight, undefined, 'FAST');
           cursorY += chunkPdfHeight;
         } else {
           // It doesn't fit!
@@ -170,13 +170,13 @@ export default function ItineraryView({ itinerary }) {
             let leftToDraw = chunkPdfHeight;
             let slicePosition = cursorY;
 
-            pdf.addImage(dataUrl, 'PNG', drawX, slicePosition, drawWidth, chunkPdfHeight);
+            pdf.addImage(dataUrl, 'PNG', drawX, slicePosition, drawWidth, chunkPdfHeight, undefined, 'FAST');
             leftToDraw -= maxUsableHeight;
 
             while (leftToDraw > 0) {
               pdf.addPage();
               slicePosition -= maxUsableHeight;
-              pdf.addImage(dataUrl, 'PNG', drawX, slicePosition, drawWidth, chunkPdfHeight);
+              pdf.addImage(dataUrl, 'PNG', drawX, slicePosition, drawWidth, chunkPdfHeight, undefined, 'FAST');
               leftToDraw -= maxUsableHeight;
             }
             // Set the cursor for the next chunk
@@ -185,7 +185,7 @@ export default function ItineraryView({ itinerary }) {
             // It fits on a single page, just move to the next page!
             pdf.addPage();
             cursorY = pageMarginTop;
-            pdf.addImage(dataUrl, 'PNG', drawX, cursorY, drawWidth, chunkPdfHeight);
+            pdf.addImage(dataUrl, 'PNG', drawX, cursorY, drawWidth, chunkPdfHeight, undefined, 'FAST');
             cursorY += chunkPdfHeight;
           }
         }
