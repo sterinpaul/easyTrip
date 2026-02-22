@@ -7,9 +7,6 @@ import jsPDF from 'jspdf';
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-
-
-
 const bebasNeue = Bebas_Neue({ subsets: ['latin'], weight: '400', variable: '--font-bebas' });
 const montserrat = Montserrat({ subsets: ['latin'], variable: '--font-montserrat' });
 
@@ -32,7 +29,7 @@ const CheckOption = ({ label, checked }) => (
 );
 
 const DayCard = ({ day, title, items }) => (
-  <div className="mb-4 border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
+  <div className="mb-4 border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden print:break-inside-avoid print:mt-4 shadow-sm print:shadow-none">
     <div className="flex justify-between items-center bg-[#fafafa] dark:bg-[#1a1a1a] py-3 px-[18px] border-b border-gray-200 dark:border-[#2a2a2a]">
       <div className="[font-family:var(--font-montserrat)] text-[15px] font-extrabold text-gray-900 dark:text-white underline uppercase tracking-[1px]">{title}</div>
       <div className="bg-[#c8a84b] text-gray-900 [font-family:var(--font-montserrat)] text-[13px] font-extrabold py-1 px-3.5 rounded tracking-[1px]">DAY {day}</div>
@@ -49,7 +46,7 @@ const DayCard = ({ day, title, items }) => (
 );
 
 const InfoCard = ({ title, items, isInclude }) => (
-  <div className="border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
+  <div className="border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden print:break-inside-avoid">
     <div className={`${isInclude ? 'bg-[#c8a84b]' : 'bg-red-700'} py-2.5 px-4 [font-family:var(--font-montserrat)] text-sm font-black tracking-[2px] text-gray-900 dark:text-white`}>{title}</div>
     <div className="py-[14px] px-4 bg-white dark:bg-[#161616]">
       {items.map((item, i) => (
@@ -67,6 +64,7 @@ export default function ItineraryView({ itinerary }) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const heroImageUrl = 'https://images.unsplash.com/photo-1596422846543-75c6fc197f07'
 
   const onEdit = () => {
     router.push(`/itinerary/${itinerary.id}/edit`);
@@ -91,45 +89,44 @@ export default function ItineraryView({ itinerary }) {
       // Add a slight delay to ensure fonts and styles are fully applied
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      const dataUrl = await toPng(contentRef.current, {
-        quality: 1.0,
-        pixelRatio: 2,
-        backgroundColor: document.documentElement.classList.contains('dark') ? '#0a0a0a' : '#f5f5f5',
-        style: {
-          transform: 'scale(1)',
-          transformOrigin: 'top left'
-        }
-      });
-
-      contentRef.current.classList.remove('pdf-exporting');
-
-      const imgData = dataUrl;
-      const img = new Image();
-      img.src = imgData;
-      await new Promise((resolve) => { img.onload = resolve; });
-      const canvas = { width: img.width, height: img.height };
-
-      const pdf = new jsPDF('p', 'mm', 'a4');
-
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      // If content is longer than one page, jsPDF scale it to fit. 
-      // For a multi-page itinerary, we might need pagination, but fitting it to width is standard for this layout.
-      let position = 0;
-      let heightLeft = pdfHeight;
-      const pageHeight = pdf.internal.pageSize.getHeight();
-
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft >= 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pageHeight;
+      const pages = Array.from(contentRef.current.querySelectorAll('.pdf-page'));
+      if (pages.length === 0) {
+        // Fallback if tags not found for any reason
+        pages.push(contentRef.current);
       }
 
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfPageHeight = pdf.internal.pageSize.getHeight();
+
+      for (let i = 0; i < pages.length; i++) {
+        if (i > 0) pdf.addPage();
+
+        const dataUrl = await toPng(pages[i], {
+          quality: 1.0,
+          pixelRatio: 2,
+          backgroundColor: document.documentElement.classList.contains('dark') ? '#0a0a0a' : '#ffffff',
+          style: {
+            transform: 'scale(1)',
+            transformOrigin: 'top left'
+          }
+        });
+
+        const img = new Image();
+        img.src = dataUrl;
+        await new Promise((resolve) => { img.onload = resolve; });
+
+        const pdfHeight = (img.height * pdfWidth) / img.width;
+
+        // We add the image constrained by either its natural scaled height or the page height
+        // Since we explicitly chunked the pages, they shouldn't exceed page limits. If they slightly do, they scale to fit.
+        // For very long pages, we scale it down to fit on ONE A4 page so it doesn't clip off the bottom.
+        const finalHeight = Math.min(pdfHeight, pdfPageHeight);
+
+        pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, finalHeight);
+      }
+
+      contentRef.current.classList.remove('pdf-exporting');
       pdf.save('TravelHub24-Itinerary.pdf');
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -174,38 +171,40 @@ export default function ItineraryView({ itinerary }) {
 
       <div ref={contentRef} className="print:bg-white print:text-black">
         {/* PAGE 1 */}
-        <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] mb-1">
+        <div className="pdf-page bg-white dark:bg-[#111] border-x border-t border-gray-200 dark:border-[#222]">
           {/* Hero */}
-          <div className="relative flex flex-col justify-between gap-8 p-5 h-[350px] bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%), url('https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=900&q=80')" }}>
-            <div className="flex justify-between">
-              <div className="border bg-black border-[#c8a84b] p-2 rounded-lg">
-                <picture>
-                  <source srcSet="/logos/travelhub24_logo_800w_2x.webp 2x, /logos/travelhub24_logo_400w.webp 1x" type="image/webp" />
-                  <img className='w-28 aspect-square' src="/logos/travelhub24_logo_400w.png" srcSet="/logos/travelhub24_logo_800w_2x.png 2x"
-                    alt="TravelHub24 - Keep your dreams alive" width="200" height="auto" />
-                </picture>
-              </div>
+          <div className="relative flex flex-col justify-between gap-2 p-5 min-h-[400px] h-fit isolate print:h-[400px]">
+            <div className="absolute inset-0 bg-cover bg-center bg-no-repeat -z-10" style={{ backgroundImage: `url(${heroImageUrl})` }}></div>
+            <div className="absolute inset-0 dark:bg-linear-to-b from-black/30 to-black/70"></div>
 
-              <div className="text-right">
-                <span className="[font-family:var(--font-montserrat)] text-[13px] tracking-[2px] drop-shadow-[2px_4px_20px_rgba(0,0,0,0.8)] text-white block">P R O P O S A L</span>
-                <div className="bg-[#c8a84b] text-black [font-family:var(--font-montserrat)] font-extrabold text-xs py-1 px-2.5 rounded inline-block mt-1">3N 4D</div>
-              </div>
+            <div className="border bg-black border-[#c8a84b] p-2 rounded-lg w-fit">
+              <picture>
+                <source srcSet="/logos/travelhub24_logo_800w_2x.webp 2x, /logos/travelhub24_logo_400w.webp 1x" type="image/webp" />
+                <img className='w-28 aspect-square' src="/logos/travelhub24_logo_400w.png" srcSet="/logos/travelhub24_logo_800w_2x.png 2x"
+                  alt="TravelHub24 - Keep your dreams alive" width="200" height="auto" />
+              </picture>
             </div>
 
-            <div>
-              <h1 className="[font-family:var(--font-bebas)] text-[96px] leading-[0.9] text-white/92 drop-shadow-[2px_4px_20px_rgba(0,0,0,0.8)] tracking-[4px] mb-2">MALAYSIA</h1>
-              <p className="[font-family:var(--font-montserrat)] text-[11px] text-white tracking-[1px]">PACKAGE ID : PU-KRA-APRIL01</p>
+            <h1 className="[font-family:var(--font-bebas)] text-5xl md:text-[80px] leading-[0.9] text-white/92 text-center drop-shadow-[2px_4px_20px_rgba(0,0,0,0.9)] tracking-[2px] md:tracking-[4px]">MALAYSIA-SINGAPORE-PHUKET</h1>
+
+            <div className="bg-black/60 w-fit p-2 rounded-md z-10">
+              <p className="[font-family:var(--font-montserrat)] text-[13px] font-semibold text-white/90 tracking-[1px]">PROPOSAL <span className="bg-[#c8a84b] text-black [font-family:var(--font-montserrat)] font-bold text-xs rounded p-1 inline-block align-middle">3N 4D</span></p>
+              <p className="[font-family:var(--font-montserrat)] text-[11px] font-semibold text-white/90 tracking-[1px]">SEGMENTS: Malaysia, Singapore</p>
+              <p className="[font-family:var(--font-montserrat)] text-[11px] font-semibold text-white/90 tracking-[1px]">PACKAGE ID: PU-KRA-APRIL01</p>
             </div>
           </div>
 
           {/* Guest Details */}
           <div className="grid grid-cols-2 bg-[#fafafa] dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a]">
             <GuestCell label="Guest Name" value="SANOJ" highlight colSpan="col-span-2 md:col-span-1" />
-            <GuestCell label="Date" value="17/02/2026" />
+            <div className="grid grid-cols-2">
+              <GuestCell label="Total Cost" value="₹50,000" />
+              <GuestCell label="Reward Points" value="500" />
+            </div>
             <GuestCell label="No of Guests" value="2 ADULT" />
-            <GuestCell label="Tour Duration" value="04 DAYS" />
-            <GuestCell label="Arriving At" value="COK" />
+            <GuestCell label="Tour Duration" value="4 DAYS" />
             <GuestCell label="Departing From" value="COK" />
+            <GuestCell label="Arriving At" value="COK" />
             <GuestCell label="Tour Start Date" value="11/04/2026" />
             <GuestCell label="Tour End Date" value="19/03/2026" />
           </div>
@@ -239,23 +238,11 @@ export default function ItineraryView({ itinerary }) {
             <div className="flex-1 border-2 border-[#c8a84b] rounded-lg flex items-center justify-center p-3.5  transition-colors"><Car className="w-8 h-8 text-black dark:text-white" /></div>
           </div>
 
-          {/* Cost */}
-          <div className="bg-[#fafafa] dark:bg-[#1a1a1a] py-[14px] my-8 px-5 flex justify-between items-center border-t border-gray-200 dark:border-[#2a2a2a]">
-            <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-600 dark:text-[#aaa] flex items-center gap-[6px]">
-              <span><Award className="w-5 h-5 text-[#c8a84b]" /></span>
-              <span>180 REWARD POINTS</span>
-            </div>
-            <div className="text-right">
-              <div className="[font-family:var(--font-bebas)] text-[42px] text-[#c8a84b] leading-none">INR 18,000</div>
-              <div className="[font-family:var(--font-montserrat)] text-[11px] text-gray-500 dark:text-[#888]">PER PERSON</div>
-            </div>
-          </div>
-
           {/* Travel Details */}
           <div className="px-5">
             <div className="[font-family:var(--font-montserrat)] text-base font-black text-[#c8a84b] tracking-[2px] pt-[14px] px-5 pb-2 uppercase border-b-2 border-[#c8a84b] mx-0">TRAVEL DETAILS</div>
           </div>
-          <div className="m-[12px_20px_20px]">
+          <div className="pdf-page m-[12px_20px_20px]">
             <div className="border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
               <div className="grid grid-cols-[60px_1fr] md:grid-cols-[60px_1fr_1px_1fr] items-center p-4 gap-4 bg-white dark:bg-[#161616]">
                 <div className="flex items-center justify-center"><PlaneTakeoff className="w-10 h-10 text-[#c8a84b]" /></div>
@@ -280,7 +267,7 @@ export default function ItineraryView({ itinerary }) {
           <div className="px-5">
             <div className="[font-family:var(--font-montserrat)] text-base font-black text-[#c8a84b] tracking-[2px] pt-[14px] px-5 pb-2 uppercase border-b-2 border-[#c8a84b] mx-0">HOTEL DETAILS</div>
           </div>
-          <div className="m-[12px_20px_0] pb-5">
+          <div className="m-[12px_20px_0] pb-5 print:break-inside-avoid">
             <div className="border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
               <div className="py-2.5 px-5 flex justify-between items-center">
                 <span className="ml-auto bg-[#c8a84b] text-black [font-family:var(--font-montserrat)] text-[11px] font-extrabold py-1 px-3 rounded tracking-[1px]">STANDARD</span>
@@ -299,8 +286,8 @@ export default function ItineraryView({ itinerary }) {
           </div>
         </div>
 
-        {/* PAGE 2 - ITINERARY */}
-        <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] mb-1 p-6">
+        {/* ITINERARY */}
+        <div className="pdf-page print:break-after-page bg-white dark:bg-[#111] border-x border-b border-gray-200 dark:border-[#222] px-6">
           <div className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white mb-5 border-l-[5px] border-[#c8a84b] pl-3">ITINERARY</div>
 
           <DayCard day="1" title="Arrival & Putrajaya + Evening City Tour" items={[
@@ -335,11 +322,10 @@ export default function ItineraryView({ itinerary }) {
             "CHECK-OUT AND TRANSFER TO AIRPORT",
             "DEPARTURE WITH HAPPY MEMORIES.",
           ]} />
-        </div>
 
-        {/* PAGE 3 - INCLUDES / EXCLUDES / HIGHLIGHTS */}
-        <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] mb-1 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+
+          {/* PAGE 3 - INCLUDES / EXCLUDES / HIGHLIGHTS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-5 print:break-inside-avoid print:mt-4">
             <InfoCard title="INCLUDES THE FOLLOWING" isInclude items={[
               "VISA.",
               "3 NIGHTS ACCOMMODATION IN HOTEL (WITH BREAKFAST).",
@@ -373,35 +359,35 @@ export default function ItineraryView({ itinerary }) {
           </div>
 
           {/* Offers */}
-          <div className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white mb-5 border-l-[5px] border-[#c8a84b] pl-3">OFFERS AND DISCOUNTS</div>
-          <div className="bg-linear-to-br from-amber-50 to-white dark:from-[#1a1a1a] dark:to-[#0d0d0d] border border-[#c8a84b] rounded-lg p-5 flex gap-5 items-center">
-            <div className="flex-1">
-              <div className="flex items-center justify-center md:justify-start gap-4 mb-1">
-                <Globe className="w-10 h-10 text-[#c8a84b]" />
-                <div>
-                  <div className="[font-family:var(--font-montserrat)] text-[11px] text-[#c8a84b] tracking-[2px] uppercase mb-1">GET A CHANCE TO WIN AN</div>
-                  <div className="[font-family:var(--font-bebas)] text-[42px] text-gray-900 dark:text-white leading-none">INTERNATIONAL<br />TRIP!</div>
+          <div className="print:break-inside-avoid print:mt-4">
+            <div className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white mb-5 border-l-[5px] border-[#c8a84b] pl-3">OFFERS AND DISCOUNTS</div>
+            <div className="bg-linear-to-br from-amber-50 to-white dark:from-[#1a1a1a] dark:to-[#0d0d0d] border border-[#c8a84b] rounded-lg p-5 flex gap-5 items-center">
+              <div className="flex-1">
+                <div className="flex items-center justify-center md:justify-start gap-4 mb-1">
+                  <Globe className="w-10 h-10 text-[#c8a84b]" />
+                  <div>
+                    <div className="[font-family:var(--font-montserrat)] text-[11px] text-[#c8a84b] tracking-[2px] uppercase mb-1">GET A CHANCE TO WIN AN</div>
+                    <div className="[font-family:var(--font-bebas)] text-[42px] text-gray-900 dark:text-white leading-none">INTERNATIONAL<br />TRIP!</div>
+                  </div>
+                </div>
+              </div>
+              <div className="w-px bg-gray-300 dark:bg-[#333] min-h-[80px]"></div>
+              <div className="flex-1 text-right">
+                <div className="flex justify-end gap-1.5 items-center [font-family:var(--font-montserrat)] text-[13px] font-bold text-[#c8a84b] tracking-[1px] uppercase"><Target className="w-5 h-5 mb-0.5 text-[#c8a84b]" /> LUCKY DRAW CONTEST ALERT!</div>
+                <div className="[font-family:var(--font-montserrat)] text-[11px] text-gray-600 dark:text-[#aaa] mt-2 leading-[1.6]">
+                  <strong className="text-gray-900 dark:text-white">HOW TO PARTICIPATE? IT'S SIMPLE!</strong><br />
+                  BOOK ANY ONE TRAVEL PACKAGE FROM OUR COMPANY BEFORE 31 DECEMBER 2025..<br />
+                  THAT'S IT - YOU'RE AUTOMATICALLY ENTERED INTO THE LUCKY DRAW!
                 </div>
               </div>
             </div>
-            <div className="w-px bg-gray-300 dark:bg-[#333] min-h-[80px]"></div>
-            <div className="flex-1 text-right">
-              <div className="flex justify-end gap-1.5 items-center [font-family:var(--font-montserrat)] text-[13px] font-bold text-[#c8a84b] tracking-[1px] uppercase"><Target className="w-5 h-5 mb-0.5 text-[#c8a84b]" /> LUCKY DRAW CONTEST ALERT!</div>
-              <div className="[font-family:var(--font-montserrat)] text-[11px] text-gray-600 dark:text-[#aaa] mt-2 leading-[1.6]">
-                <strong className="text-gray-900 dark:text-white">HOW TO PARTICIPATE? IT'S SIMPLE!</strong><br />
-                BOOK ANY ONE TRAVEL PACKAGE FROM OUR COMPANY BEFORE 31 DECEMBER 2025..<br />
-                THAT'S IT - YOU'RE AUTOMATICALLY ENTERED INTO THE LUCKY DRAW!
-              </div>
-            </div>
           </div>
-        </div>
 
-        {/* PAGE 4 - T&C */}
-        <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] mb-1 p-6">
-          <div className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white mb-5 border-l-[5px] border-[#c8a84b] pl-3">TERMS AND CONDITIONS</div>
+          {/* T&C */}
+          <div className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white my-5 border-l-[5px] border-[#c8a84b] pl-3">TERMS AND CONDITIONS</div>
 
           {/* Payment Policy */}
-          <div className="mb-5">
+          <div className="mb-5 print:break-inside-avoid print:mt-4">
             <div className="[font-family:var(--font-montserrat)] text-sm font-extrabold text-[#c8a84b] tracking-[2px] uppercase mb-3">PAYMENT POLICY</div>
             <table className="w-full border-collapse mb-4">
               <thead>
@@ -427,7 +413,7 @@ export default function ItineraryView({ itinerary }) {
           </div>
 
           {/* Cancellation Policy */}
-          <div className="mb-5">
+          <div className="mb-5 print:break-inside-avoid print:mt-4">
             <div className="[font-family:var(--font-montserrat)] text-sm font-extrabold text-[#c8a84b] tracking-[2px] uppercase mb-2">CANCELLATION POLICY</div>
             <div className="[font-family:var(--font-montserrat)] text-[11px] text-gray-500 dark:text-[#888] mb-3 leading-[1.6]">
               IN ANY CASE OF CANCELLATION OF BOOKING, IT MUST BE INFORMED IN ADVANCE TO TRAVEL HUB 24 BY WRITING.
@@ -470,45 +456,48 @@ export default function ItineraryView({ itinerary }) {
           </div>
 
           {/* Payment Details */}
-          <div className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white mb-5 border-l-[5px] border-[#c8a84b] pl-3 mt-5">PAYMENT DETAILS</div>
+          <div className="print:break-inside-avoid mt-5">
+            <h2 className="[font-family:var(--font-bebas)] text-[36px] tracking-[4px] text-gray-900 dark:text-white border-l-[5px] border-[#c8a84b] pl-3">PAYMENT DETAILS</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-            <div className="bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-5">
-              <div className="[font-family:var(--font-montserrat)] text-base font-black text-[#c8a84b] tracking-[1px] mb-[14px] uppercase">Bank Account Details</div>
-              <div className="[font-family:var(--font-montserrat)] flex gap-1.5 items-center text-[13px] text-gray-700 dark:text-[#ccc] mb-1.5"><Landmark className="w-4 h-4 text-[#c8a84b]" /> <span className="text-gray-900 dark:text-white font-bold ml-1">HDFC BANK</span></div>
-              <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-700 dark:text-[#ccc] mb-1.5">Account No: <span className="text-gray-900 dark:text-white font-bold">50200099241251</span></div>
-              <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-700 dark:text-[#ccc] mb-1.5">IFSC Code: <span className="text-gray-900 dark:text-white font-bold">HDFC0000520</span></div>
-              <div className="mt-3.5 py-2.5 px-3 bg-[#fafafa] dark:bg-[#1a1a1a] rounded-md [font-family:var(--font-montserrat)] text-[11px] text-gray-500 dark:text-[#888] flex gap-2 items-center">
-                <Smartphone className="w-4 h-4 text-[#c8a84b]" /> Also accepts: BHIM UPI | G Pay | Paytm | PhonePe
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-5">
-              <div className="flex gap-2 mb-3 items-start">
-                <div className="mt-0.5"><MapPin className="w-5 h-5 text-[#c8a84b]" fill="currentColor" /></div>
-                <div>
-                  <div className="[font-family:var(--font-montserrat)] text-[13px] font-bold text-gray-900 dark:text-white leading-[1.6]">
-                    BRINDAVAN BUSINESS CENTRE,<br />
-                    MANIMALA ROAD,<br />
-                    PONEKKARA, EDAPPALLY,<br />
-                    ERNAKULAM, KERALA.
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 my-5">
+              <div className="bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-5">
+                <div className="[font-family:var(--font-montserrat)] text-base font-black text-[#c8a84b] tracking-[1px] mb-[14px] uppercase">Bank Account Details</div>
+                <div className="[font-family:var(--font-montserrat)] flex gap-1.5 items-center text-[13px] text-gray-700 dark:text-[#ccc] mb-1.5"><Landmark className="w-4 h-4 text-[#c8a84b]" /> <span className="text-gray-900 dark:text-white font-bold ml-1">HDFC BANK</span></div>
+                <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-700 dark:text-[#ccc] mb-1.5">Account No: <span className="text-gray-900 dark:text-white font-bold">50200099241251</span></div>
+                <div className="[font-family:var(--font-montserrat)] text-[13px] text-gray-700 dark:text-[#ccc] mb-1.5">IFSC Code: <span className="text-gray-900 dark:text-white font-bold">HDFC0000520</span></div>
+                <div className="mt-3.5 py-2.5 px-3 bg-[#fafafa] dark:bg-[#1a1a1a] rounded-md [font-family:var(--font-montserrat)] text-[11px] text-gray-500 dark:text-[#888] flex gap-2 items-center">
+                  <Smartphone className="w-4 h-4 text-[#c8a84b]" /> Also accepts: BHIM UPI | G Pay | Paytm | PhonePe
                 </div>
               </div>
-              <div className="flex gap-2 items-center">
-                <div className="ml-0.5"><Globe className="w-4 h-4 text-[#c8a84b]" /></div>
-                <a href="https://www.travelhub24.in" className="[font-family:var(--font-montserrat)] text-[13px] text-[#c8a84b] no-underline font-semibold">www.travelhub24.in</a>
+
+              <div className="bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-5">
+                <div className="flex gap-2 mb-3 items-start">
+                  <div className="mt-0.5"><MapPin className="w-5 h-5 text-[#c8a84b]" fill="currentColor" /></div>
+                  <div>
+                    <div className="[font-family:var(--font-montserrat)] text-[13px] font-bold text-gray-900 dark:text-white leading-[1.6]">
+                      BRINDAVAN BUSINESS CENTRE,<br />
+                      MANIMALA ROAD,<br />
+                      PONEKKARA, EDAPPALLY,<br />
+                      ERNAKULAM, KERALA.
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <div className="ml-0.5"><Globe className="w-4 h-4 text-[#c8a84b]" /></div>
+                  <a href="https://www.travelhub24.in" className="[font-family:var(--font-montserrat)] text-[13px] text-[#c8a84b] no-underline font-semibold">www.travelhub24.in</a>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Footer Phone Numbers */}
+          <div className="bg-[#c8a84b] py-[14px] px-5 -mx-6 flex justify-center gap-5 flex-wrap">
+            {["+91 6238882424", "+91 7902220707", "+91 7902220020", "+91 9778007070"].map((phone, i) => (
+              <div className="flex items-center gap-1.5 [font-family:var(--font-montserrat)] text-sm font-extrabold text-black tracking-[1px]" key={i}><Phone className="w-4 h-4 text-black" fill="currentColor" /> {phone}</div>
+            ))}
+          </div>
         </div>
 
-        {/* Footer Phone Numbers */}
-        <div className="bg-[#c8a84b] py-[14px] px-5 flex justify-center gap-5 flex-wrap">
-          {["+91 6238882424", "+91 7902220707", "+91 7902220020", "+91 9778007070"].map((phone, i) => (
-            <div className="flex items-center gap-1.5 [font-family:var(--font-montserrat)] text-sm font-extrabold text-black tracking-[1px]" key={i}><Phone className="w-4 h-4 text-black" fill="currentColor" /> {phone}</div>
-          ))}
-        </div>
       </div>
 
       {/* Delete Confirmation Modal */}
