@@ -45,13 +45,13 @@ const DayCard = ({ day, title, items }) => (
   </div>
 );
 
-const InfoCard = ({ title, items, isInclude }) => (
+const InfoCard = ({ title, items }) => (
   <div className="border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden print:break-inside-avoid">
-    <div className={`${isInclude ? 'bg-[#c8a84b]' : 'bg-red-700'} py-2.5 px-4 [font-family:var(--font-montserrat)] text-sm font-black tracking-[2px] text-gray-900 dark:text-white`}>{title}</div>
+    <div className={`bg-[#c8a84b] py-2.5 px-4 [font-family:var(--font-montserrat)] text-sm font-black tracking-[2px] text-gray-900 dark:text-white`}>{title}</div>
     <div className="py-[14px] px-4 bg-white dark:bg-[#161616]">
       {items.map((item, i) => (
         <div className="flex gap-2 items-start mb-2 [font-family:var(--font-montserrat)] text-xs text-gray-700 dark:text-[#ccc]" key={i}>
-          <div className={`w-2.5 h-2.5 min-w-[10px] rounded-full mt-[3px] ${isInclude ? 'bg-[#c8a84b]' : 'bg-red-700 dark:bg-[#8b0000]'}`}></div>
+          <div className={`w-2.5 h-2.5 min-w-[10px] rounded-full mt-[3px] bg-[#c8a84b]`}></div>
           <span>{item}</span>
         </div>
       ))}
@@ -89,26 +89,53 @@ export default function ItineraryView({ itinerary }) {
       // Add a slight delay to ensure fonts and styles are fully applied
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      const pages = Array.from(contentRef.current.querySelectorAll('.pdf-page'));
-      if (pages.length === 0) {
-        // Fallback if tags not found for any reason
-        pages.push(contentRef.current);
-      }
+      // Select all logical sections/chunks to stack. 
+      // We'll target the immediate children of our container, or specifically marked chunks.
+      // To ensure we get everything perfectly ordered and don't double-render, we'll mark the top-level sections as chunks.
+      const chunks = Array.from(contentRef.current.children);
 
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfPageHeight = pdf.internal.pageSize.getHeight();
 
-      for (let i = 0; i < pages.length; i++) {
-        if (i > 0) pdf.addPage();
+      const pageMarginTop = 0;
+      const pageMarginBottom = 10;
+      const maxUsableHeight = pdfPageHeight - pageMarginTop - pageMarginBottom;
 
-        const dataUrl = await toPng(pages[i], {
+      let cursorY = pageMarginTop;
+
+      // Some chunks are huge wrappers (like .pdf-page). We need to get their direct children instead.
+      // So let's flatten the tree slightly: if an element is a wrapper, get its children.
+      const flatChunks = [];
+      const extractChunks = (el) => {
+        if (el.classList.contains('pdf-page') || el.classList.contains('print:bg-white')) {
+          Array.from(el.children).forEach(extractChunks);
+        } else {
+          // Skip empty nodes or modals
+          if (el.id === 'deleteModal' || el.classList.contains('print:hidden') || el.tagName === 'STYLE') return;
+          flatChunks.push(el);
+        }
+      };
+
+      chunks.forEach(extractChunks);
+
+      for (let i = 0; i < flatChunks.length; i++) {
+        const chunk = flatChunks[i];
+
+        // Skip hidden elements or tiny spacing elements
+        if (window.getComputedStyle(chunk).display === 'none') continue;
+        if (chunk.offsetHeight < 5) continue;
+
+        // Generate high quality PNG for this specific block
+        const dataUrl = await toPng(chunk, {
           quality: 1.0,
           pixelRatio: 2,
-          backgroundColor: document.documentElement.classList.contains('dark') ? '#0a0a0a' : '#ffffff',
+          // backgroundColor: document.documentElement.classList.contains('dark') ? '#0a0a0a' : '#ffffff',
           style: {
             transform: 'scale(1)',
-            transformOrigin: 'top left'
+            transformOrigin: 'top left',
+            // reset margins locally to prevent capturing empty space around the block
+            margin: '0'
           }
         });
 
@@ -116,14 +143,55 @@ export default function ItineraryView({ itinerary }) {
         img.src = dataUrl;
         await new Promise((resolve) => { img.onload = resolve; });
 
-        const pdfHeight = (img.height * pdfWidth) / img.width;
+        // Calculate dynamic width and X-offset based on original DOM position relative to the main container.
+        const containerRect = contentRef.current.getBoundingClientRect();
+        const chunkRect = chunk.getBoundingClientRect();
 
-        // We add the image constrained by either its natural scaled height or the page height
-        // Since we explicitly chunked the pages, they shouldn't exceed page limits. If they slightly do, they scale to fit.
-        // For very long pages, we scale it down to fit on ONE A4 page so it doesn't clip off the bottom.
-        const finalHeight = Math.min(pdfHeight, pdfPageHeight);
+        const widthRatio = chunkRect.width / containerRect.width;
+        const xOffsetRatio = (chunkRect.left - containerRect.left) / containerRect.width;
 
-        pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, finalHeight);
+        const drawWidth = pdfWidth * widthRatio;
+        const drawX = pdfWidth * xOffsetRatio;
+
+        const imgProps = pdf.getImageProperties(dataUrl);
+        const chunkPdfHeight = (imgProps.height * drawWidth) / imgProps.width;
+
+        // If the chunk fits on the current page
+        if (cursorY + chunkPdfHeight <= pdfPageHeight - pageMarginBottom) {
+          pdf.addImage(dataUrl, 'PNG', drawX, cursorY, drawWidth, chunkPdfHeight);
+          cursorY += chunkPdfHeight;
+        } else {
+          // It doesn't fit!
+          // If the chunk is taller than a whole page, we HAVE to slice it across pages.
+          if (chunkPdfHeight > maxUsableHeight) {
+            pdf.addPage();
+            cursorY = pageMarginTop;
+
+            let leftToDraw = chunkPdfHeight;
+            let slicePosition = cursorY;
+
+            pdf.addImage(dataUrl, 'PNG', drawX, slicePosition, drawWidth, chunkPdfHeight);
+            leftToDraw -= maxUsableHeight;
+
+            while (leftToDraw > 0) {
+              pdf.addPage();
+              slicePosition -= maxUsableHeight;
+              pdf.addImage(dataUrl, 'PNG', drawX, slicePosition, drawWidth, chunkPdfHeight);
+              leftToDraw -= maxUsableHeight;
+            }
+            // Set the cursor for the next chunk
+            cursorY = slicePosition + chunkPdfHeight;
+          } else {
+            // It fits on a single page, just move to the next page!
+            pdf.addPage();
+            cursorY = pageMarginTop;
+            pdf.addImage(dataUrl, 'PNG', drawX, cursorY, drawWidth, chunkPdfHeight);
+            cursorY += chunkPdfHeight;
+          }
+        }
+
+        // Add a tiny gap between blocks in the PDF
+        cursorY += 2;
       }
 
       contentRef.current.classList.remove('pdf-exporting');
@@ -170,19 +238,14 @@ export default function ItineraryView({ itinerary }) {
       </div>
 
       <div ref={contentRef} className="print:bg-white print:text-black">
-        {/* PAGE 1 */}
         <div className="pdf-page bg-white dark:bg-[#111] border-x border-t border-gray-200 dark:border-[#222]">
           {/* Hero */}
           <div className="relative flex flex-col justify-between gap-2 p-5 min-h-[400px] h-fit isolate print:h-[400px]">
             <div className="absolute inset-0 bg-cover bg-center bg-no-repeat -z-10" style={{ backgroundImage: `url(${heroImageUrl})` }}></div>
             <div className="absolute inset-0 dark:bg-linear-to-b from-black/30 to-black/70"></div>
 
-            <div className="border bg-black border-[#c8a84b] p-2 rounded-lg w-fit">
-              <picture>
-                <source srcSet="/logos/travelhub24_logo_800w_2x.webp 2x, /logos/travelhub24_logo_400w.webp 1x" type="image/webp" />
-                <img className='w-28 aspect-square' src="/logos/travelhub24_logo_400w.png" srcSet="/logos/travelhub24_logo_800w_2x.png 2x"
-                  alt="TravelHub24 - Keep your dreams alive" width="200" height="auto" />
-              </picture>
+            <div className="border bg-black border-[#c8a84b] p-2 rounded-lg w-fit z-10">
+              <img className="w-28 aspect-square" src="/logos/travelhub24_logo_400w.png" alt="TravelHub24 - Keep your dreams alive" width="200" height="auto" />
             </div>
 
             <h1 className="[font-family:var(--font-bebas)] text-5xl md:text-[80px] leading-[0.9] text-white/92 text-center drop-shadow-[2px_4px_20px_rgba(0,0,0,0.9)] tracking-[2px] md:tracking-[4px]">MALAYSIA-SINGAPORE-PHUKET</h1>
@@ -324,9 +387,9 @@ export default function ItineraryView({ itinerary }) {
           ]} />
 
 
-          {/* PAGE 3 - INCLUDES / EXCLUDES / HIGHLIGHTS */}
+          {/* INCLUDES / EXCLUDES / HIGHLIGHTS */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-5 print:break-inside-avoid print:mt-4">
-            <InfoCard title="INCLUDES THE FOLLOWING" isInclude items={[
+            <InfoCard title="INCLUDES THE FOLLOWING" items={[
               "VISA.",
               "3 NIGHTS ACCOMMODATION IN HOTEL (WITH BREAKFAST).",
               "ALL MENTIONED SIGHTSEEING & TRANSFERS (PVT/SIC AS SPECIFIED).",
@@ -489,15 +552,14 @@ export default function ItineraryView({ itinerary }) {
               </div>
             </div>
           </div>
-
-          {/* Footer Phone Numbers */}
-          <div className="bg-[#c8a84b] py-[14px] px-5 -mx-6 flex justify-center gap-5 flex-wrap">
-            {["+91 6238882424", "+91 7902220707", "+91 7902220020", "+91 9778007070"].map((phone, i) => (
-              <div className="flex items-center gap-1.5 [font-family:var(--font-montserrat)] text-sm font-extrabold text-black tracking-[1px]" key={i}><Phone className="w-4 h-4 text-black" fill="currentColor" /> {phone}</div>
-            ))}
-          </div>
         </div>
 
+        {/* Footer Phone Numbers */}
+        <div className="bg-[#c8a84b] py-[14px] px-5 flex justify-center gap-5 flex-wrap print:break-inside-avoid">
+          {["+91 6238882424", "+91 7902220707", "+91 7902220020", "+91 9778007070"].map((phone, i) => (
+            <div className="flex items-center gap-1.5 [font-family:var(--font-montserrat)] text-sm font-extrabold text-black tracking-[1px]" key={i}><Phone className="w-4 h-4 text-black" fill="currentColor" /> {phone}</div>
+          ))}
+        </div>
       </div>
 
       {/* Delete Confirmation Modal */}
