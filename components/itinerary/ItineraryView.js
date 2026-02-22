@@ -262,7 +262,7 @@ export default function ItineraryView({ itinerary }) {
             <GuestCell label="Guest Name" value="SANOJ" highlight colSpan="col-span-2 md:col-span-1" />
             <div className="grid grid-cols-2">
               <GuestCell label="Total Cost" value="₹50,000" />
-              <GuestCell label="Reward Points" value="500" />
+              <GuestCell label="Reward Points" value="500" colSpan="!border-r border-gray-200 dark:border-[#2a2a2a]" />
             </div>
             <GuestCell label="No of Guests" value="2 ADULT" />
             <GuestCell label="Tour Duration" value="4 DAYS" />
@@ -552,13 +552,12 @@ export default function ItineraryView({ itinerary }) {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Footer Phone Numbers */}
-        <div className="bg-[#c8a84b] py-[14px] px-5 flex justify-center gap-5 flex-wrap print:break-inside-avoid">
-          {["+91 6238882424", "+91 7902220707", "+91 7902220020", "+91 9778007070"].map((phone, i) => (
-            <div className="flex items-center gap-1.5 [font-family:var(--font-montserrat)] text-sm font-extrabold text-black tracking-[1px]" key={i}><Phone className="w-4 h-4 text-black" fill="currentColor" /> {phone}</div>
-          ))}
+          {/* Footer Phone Numbers */}
+          <div className="bg-[#c8a84b] py-[14px] px-5 -mx-6 flex justify-center gap-5 flex-wrap print:break-inside-avoid">
+            {["+91 6238882424", "+91 7902220707", "+91 7902220020", "+91 9778007070"].map((phone, i) => (
+              <div className="flex items-center gap-1.5 [font-family:var(--font-montserrat)] text-sm font-extrabold text-black tracking-[1px]" key={i}><Phone className="w-4 h-4 text-black" fill="currentColor" /> {phone}</div>
+            ))}
+          </div>
         </div>
       </div>
 
