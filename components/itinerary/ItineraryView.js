@@ -1,7 +1,7 @@
 "use client";
 
 import { Bebas_Neue, Montserrat } from 'next/font/google';
-import { Plane, Car, PlaneTakeoff, Award, Globe, Target, Landmark, Smartphone, MapPin, Phone, Edit2, Trash2, Printer, Download, Loader2 } from 'lucide-react';
+import { Plane, Car, PlaneTakeoff, PlaneLanding, Globe, Target, Landmark, Smartphone, MapPin, Phone, Edit2, Trash2, Printer, Download, Loader2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 import { useRef, useState } from 'react';
@@ -32,7 +32,7 @@ const DayCard = ({ day, title, items }) => (
   <div className="mb-4 border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden print:break-inside-avoid print:mt-4 shadow-sm print:shadow-none">
     <div className="flex justify-between items-center bg-[#fafafa] dark:bg-[#1a1a1a] py-3 px-[18px] border-b border-gray-200 dark:border-[#2a2a2a]">
       <div className="[font-family:var(--font-montserrat)] text-[15px] font-extrabold text-gray-900 dark:text-white underline uppercase tracking-[1px]">{title}</div>
-      <div className="bg-[#c8a84b] text-gray-900 [font-family:var(--font-montserrat)] text-[13px] font-extrabold py-1 px-3.5 rounded tracking-[1px]">DAY {day}</div>
+      <div className="bg-[#c8a84b] text-gray-900 whitespace-nowrap [font-family:var(--font-montserrat)] text-[13px] font-extrabold py-1 px-3.5 rounded tracking-[1px]">DAY {day}</div>
     </div>
     <div className="p-4 px-[18px] bg-white dark:bg-[#161616]">
       {items.map((item, i) => (
@@ -82,60 +82,120 @@ export default function ItineraryView({ itinerary }) {
     if (!contentRef.current || isDownloading) return;
 
     setIsDownloading(true);
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const bgColor = isDarkMode ? '#0a0a0a' : '#ffffff';
+
+    // Inline computed visual styles so the captured image retains correct
+    // theme colors. html-to-image clones nodes into an isolated SVG context
+    // which loses CSS cascade (dark mode ancestor).
+    // NOTE: 'background' shorthand is excluded — it resets background-color.
+    const inlineComputedStyles = (root) => {
+      const elements = [root, ...root.querySelectorAll('*')];
+      const props = [
+        'background-color', 'background-image', 'color',
+        'border-color', 'border-top-color', 'border-bottom-color',
+        'border-left-color', 'border-right-color'
+      ];
+      for (const el of elements) {
+        const computed = window.getComputedStyle(el);
+        for (const prop of props) {
+          el.style.setProperty(prop, computed.getPropertyValue(prop), 'important');
+        }
+      }
+    };
+
+    // Helper: fill a PDF page with the correct theme background
+    const fillPageBg = (pdf, w, h) => {
+      if (isDarkMode) {
+        pdf.setFillColor(10, 10, 10); // #0a0a0a
+        pdf.rect(0, 0, w, h, 'F');
+      }
+    };
+
+    // Create an off-screen wrapper so the visible UI is never touched.
+    const A4_WIDTH = 900;
+    const offscreen = document.createElement('div');
+    offscreen.style.cssText =
+      `position:fixed;left:-${A4_WIDTH + 200}px;top:0;z-index:-9999;width:${A4_WIDTH}px;pointer-events:none;`;
+
     try {
-      // Temporarily add a class for PDF generation to ensure perfect backgrounds
-      contentRef.current.classList.add('pdf-exporting');
+      // Deep-clone the content into the off-screen wrapper
+      const clone = contentRef.current.cloneNode(true);
+      clone.style.width = `${A4_WIDTH}px`;
+      clone.style.minWidth = `${A4_WIDTH}px`;
+      clone.style.maxWidth = `${A4_WIDTH}px`;
+      offscreen.appendChild(clone);
+      document.body.appendChild(offscreen);
 
-      // Add a slight delay to ensure fonts and styles are fully applied
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Allow the browser to reflow the clone at the forced width
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
-      // Select all logical sections/chunks to stack. 
-      // We'll target the immediate children of our container, or specifically marked chunks.
-      // To ensure we get everything perfectly ordered and don't double-render, we'll mark the top-level sections as chunks.
-      const chunks = Array.from(contentRef.current.children);
+      // Extract flat chunks from the clone
+      const chunks = Array.from(clone.children);
 
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfPageHeight = pdf.internal.pageSize.getHeight();
 
+      // Fill first page background
+      fillPageBg(pdf, pdfWidth, pdfPageHeight);
+
       const pageMarginTop = 0;
       const pageMarginBottom = 10;
       const maxUsableHeight = pdfPageHeight - pageMarginTop - pageMarginBottom;
-
       let cursorY = pageMarginTop;
 
-      // Some chunks are huge wrappers (like .pdf-page). We need to get their direct children instead.
-      // So let's flatten the tree slightly: if an element is a wrapper, get its children.
       const flatChunks = [];
       const extractChunks = (el) => {
         if (el.classList.contains('pdf-page') || el.classList.contains('print:bg-white')) {
           Array.from(el.children).forEach(extractChunks);
         } else {
-          // Skip empty nodes or modals
           if (el.id === 'deleteModal' || el.classList.contains('print:hidden') || el.tagName === 'STYLE') return;
           flatChunks.push(el);
         }
       };
-
       chunks.forEach(extractChunks);
 
       for (let i = 0; i < flatChunks.length; i++) {
         const chunk = flatChunks[i];
 
-        // Skip hidden elements or tiny spacing elements
         if (window.getComputedStyle(chunk).display === 'none') continue;
         if (chunk.offsetHeight < 5) continue;
 
-        // Generate high quality PNG for this specific block
+        // If the element has negative horizontal margins (e.g. the footer's -mx-6),
+        // convert them into extra width so the full-width background is captured.
+        const chunkStyle = window.getComputedStyle(chunk);
+        const ml = parseFloat(chunkStyle.marginLeft) || 0;
+        const mr = parseFloat(chunkStyle.marginRight) || 0;
+        if (ml < 0 || mr < 0) {
+          chunk.style.marginLeft = '0';
+          chunk.style.marginRight = '0';
+          chunk.style.paddingLeft = `${parseFloat(chunkStyle.paddingLeft || 0) + Math.abs(ml)}px`;
+          chunk.style.paddingRight = `${parseFloat(chunkStyle.paddingRight || 0) + Math.abs(mr)}px`;
+        }
+
+        // Inline computed styles on the clone (no restore needed — clone is discarded)
+        inlineComputedStyles(chunk);
+
+        // If the chunk root has a transparent/missing background, fill it with
+        // the theme color so the PDF page background doesn't bleed through.
+        // This replaces toPng's backgroundColor option which applies to the ROOT
+        // element and would OVERWRITE real backgrounds like the footer's gold.
+        const rootBg = chunk.style.getPropertyValue('background-color');
+        const isTransparent = !rootBg || rootBg === 'transparent'
+          || rootBg === 'rgba(0, 0, 0, 0)' || rootBg.startsWith('rgba(0, 0, 0, 0)');
+        if (isTransparent) {
+          chunk.style.setProperty('background-color', bgColor, 'important');
+        }
+
         const dataUrl = await toPng(chunk, {
           quality: 0.85,
           pixelRatio: 1.5,
-          // backgroundColor: document.documentElement.classList.contains('dark') ? '#0a0a0a' : '#ffffff',
           style: {
             transform: 'scale(1)',
             transformOrigin: 'top left',
-            // reset margins locally to prevent capturing empty space around the block
-            margin: '0'
+            marginTop: '0',
+            marginBottom: '0'
           }
         });
 
@@ -143,8 +203,8 @@ export default function ItineraryView({ itinerary }) {
         img.src = dataUrl;
         await new Promise((resolve) => { img.onload = resolve; });
 
-        // Calculate dynamic width and X-offset based on original DOM position relative to the main container.
-        const containerRect = contentRef.current.getBoundingClientRect();
+        // Calculate positioning relative to the clone container
+        const containerRect = clone.getBoundingClientRect();
         const chunkRect = chunk.getBoundingClientRect();
 
         const widthRatio = chunkRect.width / containerRect.width;
@@ -156,15 +216,13 @@ export default function ItineraryView({ itinerary }) {
         const imgProps = pdf.getImageProperties(dataUrl);
         const chunkPdfHeight = (imgProps.height * drawWidth) / imgProps.width;
 
-        // If the chunk fits on the current page
         if (cursorY + chunkPdfHeight <= pdfPageHeight - pageMarginBottom) {
           pdf.addImage(dataUrl, 'PNG', drawX, cursorY, drawWidth, chunkPdfHeight, undefined, 'FAST');
           cursorY += chunkPdfHeight;
         } else {
-          // It doesn't fit!
-          // If the chunk is taller than a whole page, we HAVE to slice it across pages.
           if (chunkPdfHeight > maxUsableHeight) {
             pdf.addPage();
+            fillPageBg(pdf, pdfWidth, pdfPageHeight);
             cursorY = pageMarginTop;
 
             let leftToDraw = chunkPdfHeight;
@@ -175,47 +233,37 @@ export default function ItineraryView({ itinerary }) {
 
             while (leftToDraw > 0) {
               pdf.addPage();
+              fillPageBg(pdf, pdfWidth, pdfPageHeight);
               slicePosition -= maxUsableHeight;
               pdf.addImage(dataUrl, 'PNG', drawX, slicePosition, drawWidth, chunkPdfHeight, undefined, 'FAST');
               leftToDraw -= maxUsableHeight;
             }
-            // Set the cursor for the next chunk
             cursorY = slicePosition + chunkPdfHeight;
           } else {
-            // It fits on a single page, just move to the next page!
             pdf.addPage();
+            fillPageBg(pdf, pdfWidth, pdfPageHeight);
             cursorY = pageMarginTop;
             pdf.addImage(dataUrl, 'PNG', drawX, cursorY, drawWidth, chunkPdfHeight, undefined, 'FAST');
             cursorY += chunkPdfHeight;
           }
         }
 
-        // Add a tiny gap between blocks in the PDF
+        // Small gap between components for visual separation
         cursorY += 2;
       }
 
-      contentRef.current.classList.remove('pdf-exporting');
       pdf.save('TravelHub24-Itinerary.pdf');
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Check console for details: ' + error.message);
     } finally {
+      offscreen.remove();
       setIsDownloading(false);
     }
   };
   return (
     <div className={`font-['Segoe_UI',sans-serif] bg-[#f5f5f5] dark:bg-[#0a0a0a] text-gray-900 dark:text-white print:absolute print:left-0 print:top-0 print:w-full print:z-9999 print:bg-white print:text-black print:m-0 print:p-0 min-h-screen max-w-[900px] mx-auto p-0 ${bebasNeue.variable} ${montserrat.variable} transition-colors duration-300`}>
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .pdf-exporting {
-          background-color: #0a0a0a !important; /* Ensure dark background is captured */
-          color: white !important;
-        }
-        .pdf-exporting * {
-          text-shadow: none !important; /* html2canvas struggles with drop-shadows */
-          box-shadow: none !important;
-        }
-      `}} />
+
       {/* Action Bar (Hidden in Print) */}
       <div className="print:hidden sticky top-0 z-50 bg-white/80 dark:bg-[#111]/80 backdrop-blur-md border-b border-gray-200 dark:border-[#222] p-4 mb-4 flex justify-between items-center rounded-b-lg shadow-sm">
         <div className="flex gap-2">
@@ -307,20 +355,28 @@ export default function ItineraryView({ itinerary }) {
           </div>
           <div className="pdf-page m-[12px_20px_20px]">
             <div className="border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
-              <div className="grid grid-cols-[60px_1fr] md:grid-cols-[60px_1fr_1px_1fr] items-center p-4 gap-4 bg-white dark:bg-[#161616]">
-                <div className="flex items-center justify-center"><PlaneTakeoff className="w-10 h-10 text-[#c8a84b]" /></div>
-                <div className="[font-family:var(--font-montserrat)]">
-                  <div className="text-lg font-extrabold text-gray-900 dark:text-white">COK → KUL</div>
-                  <div className="text-xs text-gray-600 dark:text-[#aaa] mt-0.5">MON, 16 APR 2026</div>
-                  <div className="text-xl font-bold text-[#c8a84b] mt-1">00:30 → 07:20</div>
-                  <div className="text-[10px] text-gray-500 dark:text-[#888] mt-1">BAGGAGE: 7 KGS | 0 KGS</div>
+              <div className="flex flex-col md:flex-row bg-white dark:bg-[#161616]">
+                {/* Outbound Flight */}
+                <div className="flex-1 flex items-center gap-4 p-4">
+                  <div className="flex items-center justify-center shrink-0"><PlaneTakeoff className="w-10 h-10 text-[#c8a84b]" /></div>
+                  <div className="[font-family:var(--font-montserrat)]">
+                    <div className="text-lg font-extrabold text-gray-900 dark:text-white">COK → KUL</div>
+                    <div className="text-xs text-gray-600 dark:text-[#aaa] mt-0.5">MON, 16 APR 2026</div>
+                    <div className="text-xl font-bold text-[#c8a84b] mt-1">00:30 → 07:20</div>
+                    <div className="text-[10px] text-gray-500 dark:text-[#888] mt-1">BAGGAGE: 7 KGS | 0 KGS</div>
+                  </div>
                 </div>
-                <div className="w-0 md:w-px bg-gray-200 dark:bg-[#2a2a2a] h-full min-h-[60px]"></div>
-                <div className="[font-family:var(--font-montserrat)]">
-                  <div className="text-lg font-extrabold text-gray-900 dark:text-white">KUL → COK</div>
-                  <div className="text-xs text-gray-600 dark:text-[#aaa] mt-0.5">THU, 19 APRIL 2026</div>
-                  <div className="text-xl font-bold text-[#c8a84b] mt-1">20:25 → 22:00 +1 DAY</div>
-                  <div className="text-[10px] text-gray-500 dark:text-[#888] mt-1">BAGGAGE: 7 KGS</div>
+                {/* Divider: horizontal on mobile, vertical on desktop */}
+                <div className="h-px md:h-auto md:w-px bg-gray-200 dark:bg-[#2a2a2a] mx-4 md:mx-0 md:my-4 min-h-0 md:min-h-[60px]"></div>
+                {/* Inbound Flight */}
+                <div className="flex-1 flex items-center gap-4 p-4">
+                  <div className="flex items-center justify-center shrink-0"><PlaneLanding className="w-10 h-10 text-[#c8a84b]" /></div>
+                  <div className="[font-family:var(--font-montserrat)]">
+                    <div className="text-lg font-extrabold text-gray-900 dark:text-white">KUL → COK</div>
+                    <div className="text-xs text-gray-600 dark:text-[#aaa] mt-0.5">THU, 19 APRIL 2026</div>
+                    <div className="text-xl font-bold text-[#c8a84b] mt-1">20:25 → 22:00 +1 DAY</div>
+                    <div className="text-[10px] text-gray-500 dark:text-[#888] mt-1">BAGGAGE: 7 KGS</div>
+                  </div>
                 </div>
               </div>
             </div>

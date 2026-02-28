@@ -11,12 +11,16 @@ const UserSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    image: {
+    phone: {
       type: String,
+    },
+    image: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Image",
     },
     role: {
       type: String,
-      default: "user", // "user" or "admin"
+      default: "user"
     },
     provider: {
       type: String,

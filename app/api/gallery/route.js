@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/db";
-import LocationImage from "@/models/LocationImage";
+import Image from "@/models/Image";
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
@@ -17,10 +17,10 @@ export async function GET(req) {
       query.createdBy = session.user.id;
     }
 
-    const photos = await LocationImage.find(query).sort({ createdAt: -1 });
+    const photos = await Image.find(query).sort({ createdAt: -1 });
     return NextResponse.json({ photos });
   } catch (error) {
-    console.error("LocationImage Fetch Error:", error);
+    console.error("Image Fetch Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
@@ -33,14 +33,14 @@ export async function POST(req) {
     const body = await req.json();
     await dbConnect();
 
-    const photo = await LocationImage.create({
+    const photo = await Image.create({
       ...body,
       createdBy: session.user.id,
     });
 
     return NextResponse.json(photo, { status: 201 });
   } catch (error) {
-    console.error("LocationImage Create Error:", error);
+    console.error("Image Create Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

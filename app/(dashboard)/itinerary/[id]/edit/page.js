@@ -4,7 +4,7 @@ import Itinerary from "@/models/Itinerary";
 import "@/models/Destination";
 import "@/models/Transportation";
 import "@/models/Client";
-import "@/models/LocationImage";
+import "@/models/Image";
 import { notFound } from "next/navigation";
 
 export default async function EditItineraryPage({ params }) {
@@ -18,7 +18,7 @@ export default async function EditItineraryPage({ params }) {
             path: "destinations",
             populate: {
                 path: "image",
-                model: "LocationImage",
+                model: "Image",
             },
         })
         .populate("transportation.inbound")

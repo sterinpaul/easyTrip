@@ -1,23 +1,35 @@
 import mongoose from "mongoose";
 
-const timeSchema = new mongoose.Schema({
-    from: { type: String },
-    to: { type: String },
-}, { _id: false });
-
 const destinationSchema = new mongoose.Schema({
     name: { type: String, required: true },
     description: { type: String },
-    image: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "LocationImage",
+    transportation: {
+        outbound: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Transportation"
+        },
+        inbound: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Transportation"
+        }
     },
-    activities: [
+    hotelDetails: [
+        {
+            type: { type: String, enum: ["ECONOMY", "STANDARD", "PREMIUM", "DELUXE"], default: "STANDARD", required: true },
+            isSelected: { type: Boolean, default: false },
+            hotels: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Hotel" }], required: true }
+        }
+    ],
+    itinerary: [
         {
             day: { type: Number, required: true }, // Day 1, Day 2...
-            date: { type: Date },
-            description: { type: String },
-            time: { type: timeSchema, default: () => ({}) },
+            title: { type: String, required: false },
+            activities: [
+                {
+                    activity: { type: String, required: true },
+                    subActivities: { type: [String], required: false }
+                }
+            ],
         }
     ],
     isActive: { type: Boolean, default: true },

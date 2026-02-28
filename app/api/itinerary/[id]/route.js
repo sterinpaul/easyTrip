@@ -2,7 +2,7 @@ import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Itinerary from "@/models/Itinerary";
 import Destination from "@/models/Destination";
-import LocationImage from "@/models/LocationImage";
+import Image from "@/models/Image";
 import Transportation from "@/models/Transportation";
 import "@/models/Client";
 import { NextResponse } from "next/server";
@@ -22,7 +22,7 @@ export async function GET(req, { params }) {
                 path: "destinations",
                 populate: {
                     path: "image",
-                    model: "LocationImage",
+                    model: "Image",
                 },
             })
             .populate("transportation.inbound")
@@ -71,8 +71,8 @@ export async function PUT(req, { params }) {
                         // Use existing image if ID provided
                         imageId = dest.image._id;
                     } else {
-                        // Create new LocationImage
-                        const locationImage = await LocationImage.create({
+                        // Create new Image
+                        const locationImage = await Image.create({
                             title: dest.image.title || dest.name,
                             description: dest.image.description || "",
                             url: dest.image.url,
@@ -156,7 +156,7 @@ export async function PUT(req, { params }) {
                 path: "destinations",
                 populate: {
                     path: "image",
-                    model: "LocationImage",
+                    model: "Image",
                 },
             })
             .populate("transportation.inbound")
