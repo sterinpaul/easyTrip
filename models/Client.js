@@ -4,6 +4,7 @@ const ClientSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     email: { type: String },
+    mobile: { type: String },
     phone: { type: String },
     address: { type: String },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // The creator
