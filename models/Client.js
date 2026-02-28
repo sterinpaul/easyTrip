@@ -3,11 +3,10 @@ import mongoose from "mongoose";
 const ClientSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, required: true },
-    mobile: { type: String, required: true },
+    email: { type: String },
     phone: { type: String },
     address: { type: String },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // The creator
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // The creator
   },
   { timestamps: true }
 );
