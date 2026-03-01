@@ -4,6 +4,7 @@ const ImageSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
     url: { type: String, required: true },
+    category: { type: String, default: "uncategorized" },
     isActive: { type: Boolean, default: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   },

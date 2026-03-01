@@ -4,8 +4,10 @@ import Itinerary from "@/models/Itinerary";
 import Destination from "@/models/Destination";
 import Image from "@/models/Image";
 import Transportation from "@/models/Transportation";
+import Hotel from "@/models/Hotel";
 import "@/models/Client";
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 
 export async function GET(req) {
   try {
@@ -16,131 +18,38 @@ export async function GET(req) {
 
     await dbConnect();
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get("status") || "upcoming";
+    const status = searchParams.get("status") || "";
+    const packageId = searchParams.get("packageId") || "";
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
 
-    let matchStage = { isActive: true };
+    let query = { isActive: true };
 
-    if (status === 'upcoming') {
-      matchStage.status = 'saved';
-      matchStage.startDate = { $gte: new Date() };
-    } else if (status === 'past') {
-      matchStage.status = 'saved';
-      matchStage.endDate = { $lt: new Date() };
-    } else if (status === 'saved') {
-      matchStage.status = 'saved';
-    } else {
-      if (status) matchStage.status = status;
+    // Package ID search (for debounced search in form)
+    if (packageId) {
+      query.packageId = { $regex: packageId, $options: "i" };
     }
 
-    if (session.user.role !== 'admin') {
-      matchStage.createdBy = new mongoose.Types.ObjectId(session.user.id);
+    if (status === "upcoming") {
+      query.startDate = { $gte: new Date() };
+    } else if (status === "past") {
+      query.endDate = { $lt: new Date() };
     }
 
-    const itineraries = await Itinerary.aggregate([
-      { $match: matchStage },
-      { $sort: { startDate: 1 } },
-      { $skip: skip },
-      { $limit: limit },
-      // Lookup Client
-      {
-        $lookup: {
-          from: "users", // Assuming 'client' refers to User model or Client model? Itinerary schema says ref: 'Client'. 
-          // Check Itinerary.js schema import: import "@/models/Client". Model is "Client". Collection "clients".
-          from: "clients",
-          localField: "client",
-          foreignField: "_id",
-          as: "client"
-        }
-      },
-      { $unwind: { path: "$client", preserveNullAndEmptyArrays: true } },
-      // Lookup Destinations
-      {
-        $lookup: {
-          from: "destinations",
-          localField: "destinations",
-          foreignField: "_id",
-          as: "destinationsData"
-        }
-      },
-      // Map destinations to preserve order
-      {
-        $addFields: {
-          destinations: {
-            $map: {
-              input: { $ifNull: ["$destinations", []] },
-              as: "destId",
-              in: {
-                $arrayElemAt: [
-                  {
-                    $filter: {
-                      input: "$destinationsData",
-                      as: "d",
-                      cond: { $eq: ["$$d._id", "$$destId"] }
-                    }
-                  },
-                  0
-                ]
-              }
-            }
-          }
-        }
-      },
-      // Remove raw lookup data
-      { $project: { destinationsData: 0 } },
-      // Unwind to lookup images
-      { $unwind: { path: "$destinations", preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: "locationimages",
-          localField: "destinations.image",
-          foreignField: "_id",
-          as: "destinations.image"
-        }
-      },
-      { $unwind: { path: "$destinations.image", preserveNullAndEmptyArrays: true } },
-      // Group back
-      {
-        $group: {
-          _id: "$_id",
-          root: { $first: "$$ROOT" },
-          destinations: { $push: "$destinations" }
-        }
-      },
-      // Merge destinations back into root
-      {
-        $replaceRoot: {
-          newRoot: {
-            $mergeObjects: ["$root.root", { destinations: { $filter: { input: "$destinations", as: "d", cond: { $ne: ["$$d", {}] } } } }]
-            // Note: $unwind on null preserves empty object or null. Check output.
-            // If destinations was empty, unwind/group might result in [null] or [{}].
-            // Safe bet is to filter empty if needed. Or accept it.
-          }
-        }
-      },
-      // Ensure destinations is array if it was null (unwind preserved null)
-      {
-        $addFields: {
-          destinations: {
-            $cond: {
-              if: { $eq: [{ $type: "$destinations" }, "array"] },
-              then: {
-                $filter: {
-                  input: "$destinations",
-                  as: "d",
-                  cond: { $and: [{ $ne: ["$$d", null] }, { $ne: ["$$d", {}] }] }
-                }
-              },
-              else: []
-            }
-          }
-        }
-      }
-    ]);
+    if (session.user.role !== "admin") {
+      query.createdBy = new mongoose.Types.ObjectId(session.user.id);
+    }
 
-    const total = await Itinerary.countDocuments(matchStage);
+    const itineraries = await Itinerary.find(query)
+      .select("title packageId startDate endDate category type totalCost guestCount client destinations")
+      .populate({ path: "client", match: { isActive: true }, select: "name" })
+      .populate({ path: "destinations", match: { isActive: true }, select: "name" })
+      .sort({ startDate: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Itinerary.countDocuments(query);
 
     return NextResponse.json({
       itineraries,
@@ -161,37 +70,40 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    console.log("POST Body:", JSON.stringify(body, null, 2));
     const userId = session.user.id;
 
-    // Handle optional ObjectId fields
-    if (body.client === "") {
-      body.client = null;
+    if (body.packageId) {
+      const existingPackage = await Itinerary.findOne({ packageId: body.packageId, isActive: true });
+      if (existingPackage) {
+        return NextResponse.json({ error: "Validation Error", details: ["Package ID already exists"] }, { status: 400 });
+      }
     }
+
+    if (body.client === "") body.client = null;
 
     await dbConnect();
 
-    // ── 1. Create Destination documents (with optional Image) ──
+    // ── 1. Create Destination documents ──
     const destinationIds = [];
 
     if (body.destinations && Array.isArray(body.destinations)) {
       for (const dest of body.destinations) {
-        let imageId = null;
-
-        // Handle Image
-        if (dest.image && dest.image.url) {
-          if (dest.image._id) {
-            // Reuse existing image
-            imageId = dest.image._id;
-          } else {
-            // Create new Image
-            const locationImage = await Image.create({
-              title: dest.image.title || dest.name,
-              description: dest.image.description || "",
-              url: dest.image.url,
+        // Handle per-destination transportation
+        const transportation = {};
+        for (const direction of ["outbound", "inbound"]) {
+          const t = dest.transportation?.[direction];
+          if (t && (t.from || t.to || t.mode)) {
+            const transportDoc = await Transportation.create({
+              mode: t.mode || undefined,
+              from: t.from,
+              to: t.to,
+              departureTime: t.departureTime || undefined,
+              arrivalTime: t.arrivalTime || undefined,
+              vehicleDetails: t.vehicleDetails || "",
+              notes: t.notes || "",
               createdBy: userId,
             });
-            imageId = locationImage._id;
+            transportation[direction] = transportDoc._id;
           }
         }
 
@@ -199,13 +111,21 @@ export async function POST(req) {
         const destination = await Destination.create({
           name: dest.name,
           description: dest.description || "",
-          image: imageId,
-          activities: (dest.activities || []).map((act) => ({
-            day: act.day,
-            date: act.date || undefined,
-            description: act.description || "",
-            time: { from: act.time?.from || "", to: act.time?.to || "" },
+          transportation,
+          hotelDetails: (dest.hotelDetails || []).map(ht => ({
+            type: ht.type || "STANDARD",
+            isSelected: ht.isSelected || false,
+            hotels: (ht.hotels || []).map(h => typeof h === 'object' ? h._id : h),
           })),
+          itinerary: (dest.itinerary || []).map(item => ({
+            day: item.day,
+            title: item.title || "",
+            activities: (item.activities || []).map(act => ({
+              activity: act.activity || "",
+              subActivities: (act.subActivities || []).filter(s => typeof s === 'string' && s.trim())
+            })).filter(act => act.activity),
+          })),
+          isActive: true,
           createdBy: userId,
         });
 
@@ -213,39 +133,29 @@ export async function POST(req) {
       }
     }
 
-    // ── 2. Create Transportation documents ──
-    const transportation = {};
-
-    for (const direction of ["inbound", "outbound"]) {
-      const t = body.transportation?.[direction];
-      if (t && (t.from || t.to || t.mode)) {
-        const transportDoc = await Transportation.create({
-          mode: t.mode || undefined,
-          from: t.from,
-          to: t.to,
-          departureTime: t.departureTime || undefined,
-          arrivalTime: t.arrivalTime || undefined,
-          vehicleDetails: t.vehicleDetails || "",
-          createdBy: userId,
-        });
-        transportation[direction] = transportDoc._id;
-      }
-    }
-
-    // ── 3. Create the Itinerary ──
+    // ── 2. Create the Itinerary ──
     const itinerary = await Itinerary.create({
       title: body.title,
+      packageId: body.packageId,
       client: body.client || undefined,
-      travelFrom: body.travelFrom,
-      travelTo: body.travelTo,
+      guestCount: body.guestCount,
+      departureFrom: body.departureFrom,
+      arrivalAt: body.arrivalAt,
       startDate: body.startDate,
       endDate: body.endDate,
-      description: body.description || "",
+      duration: body.duration,
+      category: body.category,
+      type: body.type,
       totalCost: body.totalCost || 0,
+      rewardPoints: body.rewardPoints || 0,
+      rewardPercentage: body.rewardPercentage || 0,
       notes: body.notes || "",
+      transportationModes: body.transportationModes || [],
+      includes: body.includes || [],
+      excludes: body.excludes || [],
+      heroImage: body.heroImage?._id || undefined,
+      highlightImages: (body.highlightImages || []).map(img => img._id),
       destinations: destinationIds,
-      transportation,
-      status: body.status || "draft",
       isActive: true,
       createdBy: userId,
     });
@@ -253,9 +163,12 @@ export async function POST(req) {
     return NextResponse.json(itinerary, { status: 201 });
   } catch (error) {
     console.error("Error creating itinerary:", error);
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(val => val.message);
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((val) => val.message);
       return NextResponse.json({ error: "Validation Error", details: messages }, { status: 400 });
+    }
+    if (error.name === "CastError") {
+      return NextResponse.json({ error: "Invalid ID Format", details: [`Invalid format for field ${error.path}`] }, { status: 400 });
     }
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

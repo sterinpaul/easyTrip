@@ -22,6 +22,7 @@ const UserSchema = new mongoose.Schema(
       type: String,
       default: "user"
     },
+    isActive: { type: Boolean, default: true },
     provider: {
       type: String,
       default: "email",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LayoutDashboard, Users, Image as ImageIcon, LogOut, Plane, FileText, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, Image as ImageIcon, LogOut, Plane, FileText, Menu, X, Building2 } from "lucide-react";
 import { SidebarLink } from "@/components/SidebarLink";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion, AnimatePresence } from "framer-motion";
@@ -34,6 +34,7 @@ export function Sidebar({ user }) {
       <nav className="flex-1 space-y-2">
         <SidebarLink href="/" icon={<LayoutDashboard size={20} />} label="Dashboard" />
         <SidebarLink href="/itinerary" icon={<FileText size={20} />} label="Itineraries" />
+        <SidebarLink href="/hotels" icon={<Building2 size={20} />} label="Hotels" />
         <SidebarLink href="/clients" icon={<Users size={20} />} label="Clients" />
         <SidebarLink href="/gallery" icon={<ImageIcon size={20} />} label="Gallery" />
       </nav>
@@ -92,14 +93,14 @@ export function Sidebar({ user }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={toggleSidebar}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] md:hidden"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-90 md:hidden"
             />
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 right-0 w-80 bg-black z-[100] md:hidden shadow-2xl border-l border-white/10"
+              className="fixed inset-y-0 right-0 w-80 bg-black z-100 md:hidden shadow-2xl border-l border-white/10"
             >
               <SidebarContent />
             </motion.div>

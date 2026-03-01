@@ -20,23 +20,24 @@ export default function PreviewActions({ itinerary }) {
       const element = document.getElementById('itinerary-content');
       const canvas = await html2canvas(element, { scale: 2 });
       const imgData = canvas.toDataURL('image/png');
-      
+
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
+
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       const pdfBlob = pdf.output('blob');
 
       // 2. Upload to Cloudinary
       const formData = new FormData();
-      formData.append('file', pdfBlob, `${itinerary.title}.pdf`); 
+      formData.append('file', pdfBlob, `${itinerary.title}.pdf`);
+      formData.append('folderName', 'itineraries');
 
       const uploadRes = await fetch('/api/upload', {
         method: 'POST',
         body: formData
       });
-      
+
       if (!uploadRes.ok) throw new Error("Failed to upload PDF");
       const { url: pdfUrl } = await uploadRes.json();
 
@@ -71,21 +72,21 @@ export default function PreviewActions({ itinerary }) {
     }
 
     if (!confirm(`Send itinerary to ${itinerary.client.email}?`)) return;
-    
+
     emailMutation.mutate();
   };
 
   return (
     <div className="fixed top-6 right-6 flex gap-3 z-50 print:hidden">
-      <button 
+      <button
         onClick={handlePrint}
         className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all font-medium border border-gray-100"
       >
         <Printer size={18} />
         <span>Print</span>
       </button>
-      
-      <button 
+
+      <button
         onClick={handleEmail}
         disabled={emailMutation.isPending}
         className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all font-medium disabled:opacity-50 disabled:scale-100"

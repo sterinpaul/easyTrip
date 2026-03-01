@@ -7,6 +7,7 @@ const ClientSchema = new mongoose.Schema(
     mobile: { type: String },
     phone: { type: String },
     address: { type: String },
+    isActive: { type: Boolean, default: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // The creator
   },
   { timestamps: true }

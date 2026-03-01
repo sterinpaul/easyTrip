@@ -11,7 +11,12 @@ export async function DELETE(req, { params }) {
     const { id } = await params;
     await dbConnect();
 
-    const result = await Image.findOneAndDelete({ _id: id, user: session.user.role === 'admin' ? { $exists: true } : session.user.id });
+    const query = { _id: id, isActive: true };
+    if (session.user.role !== 'admin') {
+      query.createdBy = session.user.id;
+    }
+
+    const result = await Image.findOneAndUpdate(query, { isActive: false }, { new: true });
 
     if (!result) return NextResponse.json({ error: "Not found or unauthorized" }, { status: 404 });
 

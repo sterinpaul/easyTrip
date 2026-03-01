@@ -52,7 +52,7 @@ export default function ClientForm({ initialData }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl mx-auto bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 p-8 rounded-2xl backdrop-blur-sm shadow-sm dark:shadow-none">
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 bg-clip-text text-transparent bg-linear-to-r from-purple-500 to-pink-500 w-fit">
+      <h2 className="text-xl font-bold dark:text-white mb-6 bg-clip-text text-transparent bg-linear-to-r from-purple-500 to-pink-500 w-fit">
         Client Details
       </h2>
 
@@ -69,7 +69,7 @@ export default function ClientForm({ initialData }) {
         <div className="space-y-2">
           <label className="text-sm text-gray-500 dark:text-gray-400">Email</label>
           <input
-            {...register("email", { required: "Email is required" })}
+            {...register("email")}
             className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all placeholder:text-gray-400"
           />
           {errors.email && <span className="text-red-500 dark:text-red-400 text-xs">{errors.email.message}</span>}
@@ -78,7 +78,7 @@ export default function ClientForm({ initialData }) {
         <div className="space-y-2">
           <label className="text-sm text-gray-500 dark:text-gray-400">Mobile</label>
           <input
-            {...register("mobile", { required: "Mobile is required" })}
+            {...register("mobile")}
             className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all placeholder:text-gray-400"
           />
           {errors.mobile && <span className="text-red-500 dark:text-red-400 text-xs">{errors.mobile.message}</span>}

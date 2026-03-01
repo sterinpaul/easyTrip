@@ -16,9 +16,15 @@ export async function GET(req) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
 
-    const query = {};
+    const search = searchParams.get("search");
+
+    const query = { isActive: true };
     if (session.user.role !== 'admin') {
       query.user = session.user.id;
+    }
+    if (search) {
+      const regex = { $regex: search, $options: "i" };
+      query.$or = [{ name: regex }, { email: regex }, { phone: regex }];
     }
 
     const clients = await Client.find(query)
@@ -51,7 +57,7 @@ export async function POST(req) {
 
     const client = await Client.create({
       ...body,
-      user: session.user.id,
+      createdBy: session.user.id,
     });
 
     return NextResponse.json(client, { status: 201 });

@@ -3,24 +3,29 @@
 import { useState, useEffect } from "react";
 import { Plus, Trash2, MapPin, Loader2, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 
 export default function GalleryPage() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [photoToDelete, setPhotoToDelete] = useState(null);
+
+  const [activeTab, setActiveTab] = useState("all");
+  const CATEGORIES = ["all", "destinations", "hotels"];
 
   // New Photo Form State
   const [newTitle, setNewTitle] = useState("");
-  const [newLocation, setNewLocation] = useState("");
+  const [newCategory, setNewCategory] = useState("destinations");
   const [newImage, setNewImage] = useState(null); // File object
   const [newImageUrl, setNewImageUrl] = useState(""); // URL string (if uploaded or pasted)
 
   // Fetch Photos
   const { data: photosData, isLoading: loading } = useQuery({
-    queryKey: ['gallery'],
+    queryKey: ['gallery', activeTab],
     queryFn: async () => {
-      const res = await fetch("/api/gallery");
+      const res = await fetch(`/api/gallery?category=${activeTab}`);
       if (!res.ok) throw new Error("Failed to fetch gallery");
       return res.json();
     }
@@ -37,15 +42,17 @@ export default function GalleryPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gallery'] });
+      setDeleteModalOpen(false);
+      setPhotoToDelete(null);
     },
     onError: (error) => {
       console.error("Delete failed", error);
     }
   });
 
-  const handleDelete = (id) => {
-    if (confirm("Are you sure you want to delete this photo?")) {
-      deleteMutation.mutate(id);
+  const confirmDelete = () => {
+    if (photoToDelete) {
+      deleteMutation.mutate(photoToDelete);
     }
   };
 
@@ -57,6 +64,7 @@ export default function GalleryPage() {
       if (data.newImage) {
         const formData = new FormData();
         formData.append("file", data.newImage);
+        formData.append("folderName", data.newCategory);
 
         const uploadRes = await fetch("/api/upload", {
           method: "POST",
@@ -72,7 +80,7 @@ export default function GalleryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: data.newTitle,
-          description: data.newLocation,
+          category: data.newCategory,
           url: imageUrl,
         }),
       });
@@ -84,7 +92,7 @@ export default function GalleryPage() {
       queryClient.invalidateQueries({ queryKey: ['gallery'] });
       setIsModalOpen(false);
       setNewTitle("");
-      setNewLocation("");
+      setNewCategory("destinations");
       setNewImage(null);
       setNewImageUrl("");
     },
@@ -97,7 +105,7 @@ export default function GalleryPage() {
   const handleUpload = (e) => {
     e.preventDefault();
     if (!newTitle || (!newImage && !newImageUrl)) return;
-    uploadMutation.mutate({ newTitle, newLocation, newImage, newImageUrl });
+    uploadMutation.mutate({ newTitle, newCategory, newImage, newImageUrl });
   };
 
   return (
@@ -122,19 +130,22 @@ export default function GalleryPage() {
         </button>
       </div>
 
-      {/* Upload Area Prompt */}
-      <div
-        onClick={() => setIsModalOpen(true)}
-        className="mb-8 border-2 border-dashed border-gray-300 dark:border-white/10 rounded-2xl p-8 text-center hover:border-purple-500/50 hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer group"
-      >
-        <div className="w-16 h-16 bg-purple-100 dark:bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-          <Upload className="text-purple-600 dark:text-purple-400" size={32} />
-        </div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Click to upload or drag & drop</h3>
-        <p className="text-gray-500 dark:text-gray-400 text-sm max-w-sm mx-auto">
-          SVG, PNG, JPG or GIF (max. 800x400px)
-        </p>
+      {/* Categories */}
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        {CATEGORIES.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setActiveTab(cat)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${activeTab === cat
+              ? "bg-purple-500 text-white"
+              : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10"
+              }`}
+          >
+            {cat.charAt(0).toUpperCase() + cat.slice(1)}
+          </button>
+        ))}
       </div>
+
 
       {/* Grid */}
       {loading ? (
@@ -164,18 +175,14 @@ export default function GalleryPage() {
 
                 {/* Overlay */}
                 <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                  <h3 className="text-white font-bold truncate">{photo.title}</h3>
-                  {photo.description && (
-                    <div className="flex items-center gap-1 text-xs text-gray-300">
-                      <MapPin size={12} />
-                      <span className="truncate">{photo.description}</span>
-                    </div>
-                  )}
+                  <h3 className="text-white font-bold truncate capitalize">{photo.title}</h3>
+                  <p className="text-white text-xs truncate w-full text-left capitalize">{photo.category}</p>
 
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDelete(photo._id);
+                      setPhotoToDelete(photo._id);
+                      setDeleteModalOpen(true);
                     }}
                     className="absolute top-4 right-4 bg-red-500/80 hover:bg-red-500 text-white p-2 rounded-full backdrop-blur-sm transition-all shadow-lg"
                   >
@@ -219,13 +226,18 @@ export default function GalleryPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500 dark:text-gray-400 mb-1 block">Location</label>
-                  <input
-                    value={newLocation}
-                    onChange={(e) => setNewLocation(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 placeholder:text-gray-400"
-                    placeholder="e.g. Bali, Indonesia"
-                  />
+                  <label className="text-sm text-gray-500 dark:text-gray-400 mb-1 block">Category</label>
+                  <select
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                  >
+                    {CATEGORIES.filter(c => c !== "all").map(cat => (
+                      <option key={cat} value={cat}>
+                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="text-sm text-gray-500 dark:text-gray-400 mb-1 block">Image</label>
@@ -296,6 +308,19 @@ export default function GalleryPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setPhotoToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        isDeleting={deleteMutation.isPending}
+        title="Delete Photo"
+        description="Are you sure you want to delete this photo from the gallery? This action cannot be undone."
+      />
     </div>
   );
 }

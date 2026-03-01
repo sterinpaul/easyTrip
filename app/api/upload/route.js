@@ -20,27 +20,38 @@ export async function POST(req) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
+    const folderName = formData.get("folderName") || "easy-trip";
+    const qualityParam = formData.get("quality");
+    const quality = qualityParam ? parseInt(qualityParam, 10) : JPEG_QUALITY;
+
     // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
     const rawBuffer = Buffer.from(arrayBuffer);
 
     // ── Compress / resize with sharp before uploading ──────────
-    const buffer = await sharp(rawBuffer)
-      .resize({
-        width: MAX_DIMENSION,
-        height: MAX_DIMENSION,
-        fit: "inside",          // keep aspect ratio, no crop
-        withoutEnlargement: true, // don't upscale small images
-      })
-      .jpeg({ quality: JPEG_QUALITY, mozjpeg: true }) // compress as JPEG
-      .toBuffer();
+    // If it's a PDF, we might want to skip sharp (PreviewActions uploads a pdf blob).
+    // Let's check mime type.
+    const isPdf = file.type === "application/pdf";
+    let buffer = rawBuffer;
 
-    // Upload the compressed buffer to Cloudinary
+    if (!isPdf) {
+      buffer = await sharp(rawBuffer)
+        .resize({
+          width: MAX_DIMENSION,
+          height: MAX_DIMENSION,
+          fit: "inside",          // keep aspect ratio, no crop
+          withoutEnlargement: true, // don't upscale small images
+        })
+        .jpeg({ quality: quality, mozjpeg: true }) // compress as JPEG
+        .toBuffer();
+    }
+
+    // Upload the buffer to Cloudinary
     const result = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
-          folder: "easy-trip",
-          resource_type: "image",
+          folder: folderName,
+          resource_type: isPdf ? "raw" : "image",
         },
         (error, result) => {
           if (error) reject(error);

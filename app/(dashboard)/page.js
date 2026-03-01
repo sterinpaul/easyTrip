@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Users, FileText, Calendar, Clock, Loader2 } from "lucide-react";
+import { Users, FileText, Calendar, Clock, Loader2, Building2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -42,6 +42,14 @@ export default function DashboardStatsPage() {
       color: "from-purple-500/20 to-purple-600/5",
       borderColor: "border-purple-500/30",
       href: "/itinerary",
+    },
+    {
+      label: "Total Hotels",
+      value: stats?.totalHotels || 0,
+      icon: <Building2 size={24} className="text-amber-400" />,
+      color: "from-amber-500/20 to-amber-600/5",
+      borderColor: "border-amber-500/30",
+      href: "/hotels",
     },
     {
       label: "Upcoming Trips",

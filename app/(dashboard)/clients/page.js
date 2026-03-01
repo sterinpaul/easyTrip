@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { Plus, Search, Loader2, Users } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-
-import { useQuery } from "@tanstack/react-query";
+import { Plus, Mail, Loader2, Users, Trash2, Edit, Phone, MapPin } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 
 export default function ClientsPage() {
   const [page, setPage] = useState(1);
+  const queryClient = useQueryClient();
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState(null);
 
   const { data, isLoading: loading } = useQuery({
     queryKey: ['clients', page],
@@ -21,6 +24,25 @@ export default function ClientsPage() {
 
   const clients = data?.clients || [];
   const totalPages = data?.totalPages || 1;
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await fetch(`/api/clients/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete client");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      setDeleteModalOpen(false);
+      setClientToDelete(null);
+    },
+  });
+
+  const confirmDelete = () => {
+    if (clientToDelete) {
+      deleteMutation.mutate(clientToDelete);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -69,12 +91,11 @@ export default function ClientsPage() {
                   <tr key={client._id} className="group hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
+                        <div className="w-10 h-10 aspect-square rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
                           {client.name.charAt(0)}
                         </div>
                         <div>
                           <div className="font-medium text-gray-900 dark:text-white">{client.name}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Client ID: #{client._id.slice(-4)}</div>
                         </div>
                       </div>
                     </td>
@@ -97,15 +118,18 @@ export default function ClientsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="p-2 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white hover:bg-purple-500 hover:text-white transition-colors">
-                          <Mail size={18} />
-                        </button>
-                        <button className="p-2 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white hover:bg-blue-500 hover:text-white transition-colors">
+                      <div className="flex gap-2 transition-opacity">
+                        <Link
+                          href={`/clients/${client._id}/edit`}
+                          className="p-2 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white hover:bg-blue-500 hover:text-white transition-colors"
+                        >
                           <Edit size={18} />
-                        </button>
+                        </Link>
                         <button
-                          onClick={() => handleDelete(client._id)}
+                          onClick={() => {
+                            setClientToDelete(client._id);
+                            setDeleteModalOpen(true);
+                          }}
                           className="p-2 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white hover:bg-red-500 hover:text-white transition-colors"
                         >
                           <Trash2 size={18} />
@@ -148,6 +172,19 @@ export default function ClientsPage() {
           </button>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setClientToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        isDeleting={deleteMutation.isPending}
+        title="Delete Client"
+        description="Are you sure you want to delete this client? This action cannot be undone."
+      />
     </div>
   );
 }

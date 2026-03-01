@@ -11,13 +11,31 @@ export async function GET(req) {
     await dbConnect();
     // Fetch all for admin, or user specific?
     // "Gallery page shows places with options to add photos of places"
-    // I'll filter by user for consistent scoping
-    const query = {};
+    const { searchParams } = new URL(req.url);
+    const category = searchParams.get("category");
+    const search = searchParams.get("search");
+    const limitParams = searchParams.get("limit");
+
+    const query = { isActive: true };
     if (session.user.role !== 'admin') {
       query.createdBy = session.user.id;
     }
+    if (category && category !== 'all') {
+      query.category = category;
+    }
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } }
+      ];
+    }
 
-    const photos = await Image.find(query).sort({ createdAt: -1 });
+    let photosQuery = Image.find(query).sort({ createdAt: -1 });
+    if (limitParams) {
+      photosQuery = photosQuery.limit(parseInt(limitParams));
+    }
+
+    const photos = await photosQuery;
     return NextResponse.json({ photos });
   } catch (error) {
     console.error("Image Fetch Error:", error);
@@ -34,7 +52,9 @@ export async function POST(req) {
     await dbConnect();
 
     const photo = await Image.create({
-      ...body,
+      title: body.title,
+      url: body.url,
+      category: body.category || "destinations", // Default to destinations as requested
       createdBy: session.user.id,
     });
 

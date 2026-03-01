@@ -2,20 +2,20 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Client from "@/models/Client";
 import Itinerary from "@/models/Itinerary";
+import Hotel from "@/models/Hotel";
 
 export async function GET() {
   try {
     await dbConnect();
 
-    const totalClients = await Client.countDocuments();
+    const totalClients = await Client.countDocuments({ isActive: true });
     const totalItineraries = await Itinerary.countDocuments({ isActive: true });
+    const totalHotels = await Hotel.countDocuments({ isActive: true });
     const upcomingTrips = await Itinerary.countDocuments({
-      status: 'saved',
       isActive: true,
       startDate: { $gte: new Date() },
     });
     const pastTrips = await Itinerary.countDocuments({
-      status: 'saved',
       isActive: true,
       endDate: { $lt: new Date() },
     });
@@ -23,6 +23,7 @@ export async function GET() {
     return NextResponse.json({
       totalClients,
       totalItineraries,
+      totalHotels,
       upcomingTrips,
       pastTrips,
     });
