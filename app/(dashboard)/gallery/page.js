@@ -13,6 +13,7 @@ export default function GalleryPage() {
   const [photoToDelete, setPhotoToDelete] = useState(null);
 
   const [activeTab, setActiveTab] = useState("all");
+  const [page, setPage] = useState(1);
   const CATEGORIES = ["all", "destinations", "hotels"];
 
   // New Photo Form State
@@ -23,15 +24,16 @@ export default function GalleryPage() {
 
   // Fetch Photos
   const { data: photosData, isLoading: loading } = useQuery({
-    queryKey: ['gallery', activeTab],
+    queryKey: ['gallery', activeTab, page],
     queryFn: async () => {
-      const res = await fetch(`/api/gallery?category=${activeTab}`);
+      const res = await fetch(`/api/gallery?category=${activeTab}&page=${page}&limit=20`);
       if (!res.ok) throw new Error("Failed to fetch gallery");
       return res.json();
     }
   });
 
   const photos = photosData?.photos || [];
+  const totalPages = photosData?.totalPages || 1;
 
   // Delete Mutation
   const deleteMutation = useMutation({
@@ -135,7 +137,7 @@ export default function GalleryPage() {
         {CATEGORIES.map((cat) => (
           <button
             key={cat}
-            onClick={() => setActiveTab(cat)}
+            onClick={() => { setActiveTab(cat); setPage(1); }}
             className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${activeTab === cat
               ? "bg-purple-500 text-white"
               : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10"
@@ -192,6 +194,27 @@ export default function GalleryPage() {
               </motion.div>
             ))}
           </AnimatePresence>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2 mt-4">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-transparent text-gray-700 dark:text-white disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-white/20 transition-colors"
+          >
+            Prev
+          </button>
+          <span className="px-4 py-2 text-gray-600 dark:text-gray-400">Page {page} of {totalPages}</span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-transparent text-gray-700 dark:text-white disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-white/20 transition-colors"
+          >
+            Next
+          </button>
         </div>
       )}
 

@@ -14,7 +14,8 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const category = searchParams.get("category");
     const search = searchParams.get("search");
-    const limitParams = searchParams.get("limit");
+    const page = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
 
     const query = { isActive: true };
     if (session.user.role !== 'admin') {
@@ -30,11 +31,24 @@ export async function GET(req) {
       ];
     }
 
-    let photosQuery = Image.find(query).sort({ createdAt: -1 });
-    if (limitParams) {
-      photosQuery = photosQuery.limit(parseInt(limitParams));
+    if (page) {
+      const limit = parseInt(limitParam || "20");
+      const pageNum = parseInt(page);
+      const skip = (pageNum - 1) * limit;
+      const total = await Image.countDocuments(query);
+      const photos = await Image.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
+      return NextResponse.json({
+        photos,
+        totalPages: Math.ceil(total / limit),
+        currentPage: pageNum,
+      });
     }
 
+    // No pagination (used by ImageSelector and other components)
+    let photosQuery = Image.find(query).sort({ createdAt: -1 });
+    if (limitParam) {
+      photosQuery = photosQuery.limit(parseInt(limitParam));
+    }
     const photos = await photosQuery;
     return NextResponse.json({ photos });
   } catch (error) {
