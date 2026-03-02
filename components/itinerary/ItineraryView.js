@@ -119,7 +119,7 @@ export default function ItineraryView({ itinerary }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletingLoading, setIsDeletingLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [viewMode, setViewMode] = useState("itinerary"); // "itinerary" or "proposal"
+  const [viewMode, setViewMode] = useState("proposal"); // "proposal" or "itinerary"
 
   const isProposal = viewMode === "proposal";
   const heroImageUrl = itinerary?.heroImage?.url || 'https://images.unsplash.com/photo-1596422846543-75c6fc197f07';
@@ -328,15 +328,6 @@ export default function ItineraryView({ itinerary }) {
           {/* Itinerary / Proposal Toggle */}
           <div className="flex p-0.5 bg-gray-100 dark:bg-[#222] rounded-lg ml-2">
             <button
-              onClick={() => setViewMode("itinerary")}
-              className={`px-3 py-1.5 rounded-md [font-family:var(--font-montserrat)] text-[11px] font-bold tracking-[0.5px] transition-all ${viewMode === "itinerary"
-                ? "bg-[#c8a84b] text-black shadow-sm"
-                : "text-gray-500 dark:text-[#888] hover:text-gray-900 dark:hover:text-white"
-                }`}
-            >
-              ITINERARY
-            </button>
-            <button
               onClick={() => setViewMode("proposal")}
               className={`px-3 py-1.5 rounded-md [font-family:var(--font-montserrat)] text-[11px] font-bold tracking-[0.5px] transition-all ${viewMode === "proposal"
                 ? "bg-[#c8a84b] text-black shadow-sm"
@@ -344,6 +335,15 @@ export default function ItineraryView({ itinerary }) {
                 }`}
             >
               PROPOSAL
+            </button>
+            <button
+              onClick={() => setViewMode("itinerary")}
+              className={`px-3 py-1.5 rounded-md [font-family:var(--font-montserrat)] text-[11px] font-bold tracking-[0.5px] transition-all ${viewMode === "itinerary"
+                ? "bg-[#c8a84b] text-black shadow-sm"
+                : "text-gray-500 dark:text-[#888] hover:text-gray-900 dark:hover:text-white"
+                }`}
+            >
+              ITINERARY
             </button>
           </div>
 

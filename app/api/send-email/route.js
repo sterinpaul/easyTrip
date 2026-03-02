@@ -32,13 +32,13 @@ export async function POST(req) {
         <h2 style="color: #6d28d9;">Here is your Itinerary!</h2>
         <p>${message.replace(/\n/g, "<br>")}</p>
         <p>You can also download it directly from the link below:</p>
-        <a href="${attachmentUrl}" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Download PDF</a>
+        <a href="${attachmentUrl}" style="background-color: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Download Image</a>
         <br><br>
         <p>Safe travels,<br>EasyTrip Team</p>
       </div>`,
       attachments: attachmentUrl ? [
         {
-          filename: 'Itinerary.pdf',
+          filename: 'Itinerary.png',
           path: attachmentUrl // Nodemailer can fetch from URL
         }
       ] : []

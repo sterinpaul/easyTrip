@@ -15,22 +15,15 @@ export default function PreviewActions({ itinerary }) {
     mutationFn: async () => {
       // Dynamic import
       const html2canvas = (await import('html2canvas')).default;
-      const { jsPDF } = await import('jspdf');
 
       const element = document.getElementById('itinerary-content');
       const canvas = await html2canvas(element, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
 
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      const pdfBlob = pdf.output('blob');
+      const imgBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
 
       // 2. Upload to Cloudinary
       const formData = new FormData();
-      formData.append('file', pdfBlob, `${itinerary.title}.pdf`);
+      formData.append('file', imgBlob, `${itinerary.title}.png`);
       formData.append('folderName', 'itineraries');
 
       const uploadRes = await fetch('/api/upload', {
@@ -38,8 +31,8 @@ export default function PreviewActions({ itinerary }) {
         body: formData
       });
 
-      if (!uploadRes.ok) throw new Error("Failed to upload PDF");
-      const { url: pdfUrl } = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error("Failed to upload itinerary image");
+      const { url: imgUrl } = await uploadRes.json();
 
       // 3. Send Email
       const emailRes = await fetch('/api/send-email', {
@@ -49,7 +42,7 @@ export default function PreviewActions({ itinerary }) {
           to: itinerary.client.email,
           subject: `Your Itinerary: ${itinerary.title}`,
           message: `Hi ${itinerary.client.name},\n\nPlease find your itinerary attached.\n\nView online: ${window.location.href}`,
-          attachmentUrl: pdfUrl
+          attachmentUrl: imgUrl
         })
       });
 

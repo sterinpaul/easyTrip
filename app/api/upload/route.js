@@ -20,6 +20,17 @@ export async function POST(req) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    const ALLOWED_FORMATS = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: "File size exceeds 10MB limit" }, { status: 400 });
+    }
+
+    if (!ALLOWED_FORMATS.includes(file.type)) {
+      return NextResponse.json({ error: "File format not allowed. Only JPEG, PNG, WEBP, and AVIF are supported." }, { status: 400 });
+    }
+
     const folderName = formData.get("folderName") || "easy-trip";
     const qualityParam = formData.get("quality");
     const quality = qualityParam ? parseInt(qualityParam, 10) : JPEG_QUALITY;
@@ -29,29 +40,23 @@ export async function POST(req) {
     const rawBuffer = Buffer.from(arrayBuffer);
 
     // ── Compress / resize with sharp before uploading ──────────
-    // If it's a PDF, we might want to skip sharp (PreviewActions uploads a pdf blob).
-    // Let's check mime type.
-    const isPdf = file.type === "application/pdf";
-    let buffer = rawBuffer;
-
-    if (!isPdf) {
-      buffer = await sharp(rawBuffer)
-        .resize({
-          width: MAX_DIMENSION,
-          height: MAX_DIMENSION,
-          fit: "inside",          // keep aspect ratio, no crop
-          withoutEnlargement: true, // don't upscale small images
-        })
-        .jpeg({ quality: quality, mozjpeg: true }) // compress as JPEG
-        .toBuffer();
-    }
+    const buffer = await sharp(rawBuffer)
+      .resize({
+        width: MAX_DIMENSION,
+        height: MAX_DIMENSION,
+        fit: "inside",          // keep aspect ratio, no crop
+        withoutEnlargement: true, // don't upscale small images
+      })
+      .jpeg({ quality: quality, mozjpeg: true }) // compress as JPEG
+      .toBuffer();
 
     // Upload the buffer to Cloudinary
     const result = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
           folder: folderName,
-          resource_type: isPdf ? "raw" : "image",
+          resource_type: "image",
+          allowed_formats: ['jpeg', 'jpg', 'png', 'webp', 'avif'],
         },
         (error, result) => {
           if (error) reject(error);

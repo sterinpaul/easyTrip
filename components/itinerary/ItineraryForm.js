@@ -152,10 +152,10 @@ function ClientSelector({ selectedClient, onChange }) {
   const debouncedSearch = useDebouncedValue(search, 500);
 
   const { data, isFetching } = useQuery({
-    queryKey: ["client-search", debouncedSearch],
+    queryKey: ["client-search", debouncedSearch.trim()],
     queryFn: async () => {
       let url = "/api/clients?limit=10";
-      if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
+      if (debouncedSearch.trim()) url += `&search=${encodeURIComponent(debouncedSearch.trim())}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch clients");
       return res.json();
@@ -224,10 +224,10 @@ function HotelSelector({ selectedHotels, onChange }) {
   const debouncedSearch = useDebouncedValue(search, 500);
 
   const { data, isFetching } = useQuery({
-    queryKey: ["hotel-search", debouncedSearch],
+    queryKey: ["hotel-search", debouncedSearch.trim()],
     queryFn: async () => {
       let url = "/api/hotels?limit=10";
-      if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
+      if (debouncedSearch.trim()) url += `&search=${encodeURIComponent(debouncedSearch.trim())}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch hotels");
       return res.json();
@@ -660,13 +660,13 @@ function PackageIdValidator({ packageId, currentId }) {
   const debouncedId = useDebouncedValue(packageId, 600);
 
   const { data, isFetching } = useQuery({
-    queryKey: ["packageId-check", debouncedId],
+    queryKey: ["packageId-check", debouncedId.trim()],
     queryFn: async () => {
-      const res = await fetch(`/api/itinerary?packageId=${encodeURIComponent(debouncedId)}&limit=1`);
+      const res = await fetch(`/api/itinerary?packageId=${encodeURIComponent(debouncedId.trim())}&limit=1`);
       if (!res.ok) throw new Error("Failed to check");
       return res.json();
     },
-    enabled: !!debouncedId && debouncedId.length >= 2,
+    enabled: !!debouncedId.trim() && debouncedId.trim().length >= 2,
   });
 
   if (!packageId || packageId.length < 2) return null;
@@ -791,13 +791,13 @@ export default function ItineraryForm({ initialData }) {
 
   // ── Package Search (debounced) ──
   const { data: searchResults, isFetching: isFetchingPackages } = useQuery({
-    queryKey: ["itinerary-search", debouncedPackageSearch],
+    queryKey: ["itinerary-search", debouncedPackageSearch.trim()],
     queryFn: async () => {
-      const res = await fetch(`/api/itinerary?packageId=${encodeURIComponent(debouncedPackageSearch)}&limit=5`);
+      const res = await fetch(`/api/itinerary?search=${encodeURIComponent(debouncedPackageSearch.trim())}&limit=5`);
       if (!res.ok) throw new Error("Failed to search");
       return res.json();
     },
-    enabled: debouncedPackageSearch.length >= 2,
+    enabled: debouncedPackageSearch.trim().length >= 1,
   });
 
   const handlePrefillFromSearch = (itinerary) => {
@@ -1019,12 +1019,12 @@ export default function ItineraryForm({ initialData }) {
             placeholder="Search by Package ID (e.g. PU-KRA-APRIL01)..."
             spellCheck={true}
           />
-          {packageSearch.length >= 2 && (packageSearch !== debouncedPackageSearch || isFetchingPackages) ? (
+          {packageSearch.trim().length >= 1 && (packageSearch.trim() !== debouncedPackageSearch.trim() || isFetchingPackages) ? (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 rounded-xl shadow-xl overflow-hidden z-50 p-6 flex flex-col items-center justify-center text-center">
               <Loader2 className="animate-spin mb-2 text-purple-500" size={20} />
               <span className="text-sm text-gray-500">Searching packages...</span>
             </div>
-          ) : debouncedPackageSearch.length >= 2 && searchResults?.itineraries?.length > 0 && (
+          ) : debouncedPackageSearch.trim().length >= 1 && searchResults?.itineraries?.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 rounded-xl shadow-xl overflow-hidden z-50">
               {searchResults.itineraries.map((it) => (
                 <button

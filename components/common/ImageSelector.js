@@ -30,10 +30,10 @@ export default function ImageSelector({ selectedImages = [], onChange, multiple 
     const [uploadTitle, setUploadTitle] = useState("");
 
     const { data, isFetching } = useQuery({
-        queryKey: ["image-search", debouncedSearch, folder],
+        queryKey: ["image-search", debouncedSearch.trim(), folder],
         queryFn: async () => {
             let url = `/api/gallery?limit=10&category=${folder}`;
-            if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
+            if (debouncedSearch.trim()) url += `&search=${encodeURIComponent(debouncedSearch.trim())}`;
             const res = await fetch(url);
             if (!res.ok) throw new Error("Failed to fetch gallery images");
             return res.json();
@@ -45,6 +45,21 @@ export default function ImageSelector({ selectedImages = [], onChange, multiple 
     const handleFileSelect = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        // Validation
+        if (file.size > 10 * 1024 * 1024) {
+            alert("File size exceeds 10MB limit. Please choose a smaller file.");
+            e.target.value = "";
+            return;
+        }
+
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+        if (!allowedTypes.includes(file.type)) {
+            alert("Invalid file format. Only JPEG, PNG, WEBP, and AVIF are allowed.");
+            e.target.value = "";
+            return;
+        }
+
         setUploadFile(file);
         // Default title to filename without extension
         setUploadTitle(file.name.replace(/\.[^/.]+$/, ""));
@@ -197,7 +212,7 @@ export default function ImageSelector({ selectedImages = [], onChange, multiple 
                             <label className={`w-full flex items-center justify-center gap-2 ${pillBtnClass} cursor-pointer border-2 border-dashed border-gray-300 dark:border-gray-600 bg-transparent hover:border-purple-500 dark:hover:border-purple-500 py-3!`}>
                                 <Upload size={18} className="text-purple-500" />
                                 <span className="font-medium">Upload New</span>
-                                <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+                                <input type="file" accept="image/jpeg, image/png, image/webp, image/avif" className="hidden" onChange={handleFileSelect} />
                             </label>
                         ) : (
                             <div className="w-full bg-white dark:bg-white/5 border border-purple-200 dark:border-purple-500/20 rounded-xl p-3 flex flex-col gap-3 shadow-sm relative">

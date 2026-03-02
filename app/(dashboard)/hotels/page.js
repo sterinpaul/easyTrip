@@ -1,14 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Search, Loader2, Building2, Star, Edit, Trash2, MapPin, Phone, Mail } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 
+function useDebouncedValue(value, delay = 500) {
+    const [debounced, setDebounced] = useState(value);
+    useEffect(() => {
+        const timer = setTimeout(() => setDebounced(value), delay);
+        return () => clearTimeout(timer);
+    }, [value, delay]);
+    return debounced;
+}
+
 export default function HotelsPage() {
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
+    const debouncedSearch = useDebouncedValue(search, 500);
     const queryClient = useQueryClient();
     const router = useRouter();
 
@@ -16,9 +26,9 @@ export default function HotelsPage() {
     const [hotelToDelete, setHotelToDelete] = useState(null);
 
     const { data, isLoading: loading } = useQuery({
-        queryKey: ["hotels", page, search],
+        queryKey: ["hotels", page, debouncedSearch.trim()],
         queryFn: async () => {
-            const res = await fetch(`/api/hotels?page=${page}&limit=10&search=${encodeURIComponent(search)}`);
+            const res = await fetch(`/api/hotels?page=${page}&limit=10&search=${encodeURIComponent(debouncedSearch.trim())}`);
             if (!res.ok) throw new Error("Failed to fetch hotels");
             return res.json();
         },

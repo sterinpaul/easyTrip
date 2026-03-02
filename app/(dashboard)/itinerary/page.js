@@ -1,11 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, Calendar, MapPin, Users, Loader2, FileText, Edit, Trash2, Eye, IndianRupee } from "lucide-react";
+import { Plus, Calendar, MapPin, Users, Loader2, FileText, Edit, Trash2, Eye, IndianRupee, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
+
+function useDebouncedValue(value, delay = 500) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
 
 export default function ItinerariesPage() {
   const searchParams = useSearchParams();
@@ -13,14 +22,18 @@ export default function ItinerariesPage() {
   const queryClient = useQueryClient();
   const statusTab = searchParams.get("status") || "upcoming";
   const page = parseInt(searchParams.get("page") || "1");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 500);
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itineraryToDelete, setItineraryToDelete] = useState(null);
 
   const { data, isLoading: loading } = useQuery({
-    queryKey: ['itineraries', statusTab, page],
+    queryKey: ['itineraries', statusTab, page, debouncedSearch.trim()],
     queryFn: async () => {
-      const res = await fetch(`/api/itinerary?status=${statusTab}&page=${page}&limit=10`);
+      let url = `/api/itinerary?status=${statusTab}&page=${page}&limit=10`;
+      if (debouncedSearch.trim()) url += `&search=${encodeURIComponent(debouncedSearch.trim())}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch itineraries");
       return res.json();
     }
@@ -88,26 +101,41 @@ export default function ItinerariesPage() {
         </Link>
       </div>
 
-      {/* Tabs */}
-      <div className="flex p-1 bg-gray-100 dark:bg-white/5 rounded-xl w-fit border border-gray-200 dark:border-white/10 backdrop-blur-sm">
-        <button
-          onClick={() => handleTabChange("upcoming")}
-          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${statusTab === "upcoming"
-            ? "bg-white text-purple-600 shadow-sm dark:bg-white/10 dark:text-white"
-            : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            }`}
-        >
-          Upcoming
-        </button>
-        <button
-          onClick={() => handleTabChange("past")}
-          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${statusTab === "past"
-            ? "bg-white text-purple-600 shadow-sm dark:bg-white/10 dark:text-white"
-            : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            }`}
-        >
-          Past
-        </button>
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+        {/* Tabs */}
+        <div className="flex p-1 bg-gray-100 dark:bg-white/5 rounded-xl w-fit border border-gray-200 dark:border-white/10 backdrop-blur-sm">
+          <button
+            onClick={() => handleTabChange("upcoming")}
+            className={`px-6 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${statusTab === "upcoming"
+              ? "bg-white text-purple-600 shadow-sm dark:bg-white/10 dark:text-white"
+              : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              }`}
+          >
+            Upcoming
+          </button>
+          <button
+            onClick={() => handleTabChange("past")}
+            className={`px-6 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${statusTab === "past"
+              ? "bg-white text-purple-600 shadow-sm dark:bg-white/10 dark:text-white"
+              : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              }`}
+          >
+            Past
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="relative w-full md:max-w-md">
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by title or package ID..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); handlePageChange(1); }}
+            spellCheck={true}
+            className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all placeholder:text-gray-400"
+          />
+        </div>
       </div>
 
       {/* Table */}
@@ -143,7 +171,6 @@ export default function ItinerariesPage() {
                       <div>
                         <div className="font-semibold text-gray-900 dark:text-white">{it.title}</div>
                         <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5">
-                          <FileText size={12} />
                           {it.packageId}
                         </div>
                       </div>
@@ -223,25 +250,27 @@ export default function ItinerariesPage() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-4">
-          <button
-            onClick={() => handlePageChange(Math.max(1, page - 1))}
-            disabled={page === 1}
-            className="px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-transparent text-gray-700 dark:text-white disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-white/20 transition-colors"
-          >
-            Prev
-          </button>
-          <span className="px-4 py-2 text-gray-600 dark:text-gray-400">Page {page} of {totalPages}</span>
-          <button
-            onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
-            disabled={page === totalPages}
-            className="px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-transparent text-gray-700 dark:text-white disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-white/20 transition-colors"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      {
+        totalPages > 1 && (
+          <div className="flex justify-center gap-2 mt-4">
+            <button
+              onClick={() => handlePageChange(Math.max(1, page - 1))}
+              disabled={page === 1}
+              className="px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-transparent text-gray-700 dark:text-white disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-white/20 transition-colors"
+            >
+              Prev
+            </button>
+            <span className="px-4 py-2 text-gray-600 dark:text-gray-400">Page {page} of {totalPages}</span>
+            <button
+              onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
+              disabled={page === totalPages}
+              className="px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-transparent text-gray-700 dark:text-white disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-white/20 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        )
+      }
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal
@@ -255,6 +284,6 @@ export default function ItinerariesPage() {
         title="Delete Itinerary"
         description="Are you sure you want to delete this itinerary? This action cannot be undone."
       />
-    </div>
+    </div >
   );
 }

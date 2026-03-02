@@ -1,22 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Mail, Loader2, Users, Trash2, Edit, Phone, MapPin } from "lucide-react";
+import { Plus, Mail, Loader2, Users, Trash2, Edit, Phone, MapPin, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 
+function useDebouncedValue(value, delay = 500) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+
 export default function ClientsPage() {
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 500);
   const queryClient = useQueryClient();
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState(null);
 
   const { data, isLoading: loading } = useQuery({
-    queryKey: ['clients', page],
+    queryKey: ['clients', page, debouncedSearch.trim()],
     queryFn: async () => {
-      const res = await fetch(`/api/clients?page=${page}&limit=10`);
+      let url = `/api/clients?page=${page}&limit=10`;
+      if (debouncedSearch.trim()) url += `&search=${encodeURIComponent(debouncedSearch.trim())}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch clients");
       return res.json();
     }
@@ -64,6 +77,19 @@ export default function ClientsPage() {
           <Plus size={20} />
           <span>Add Client</span>
         </Link>
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-md">
+        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search clients by name, email, or phone..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          spellCheck={true}
+          className="w-full pl-11 pr-4 py-3 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all placeholder:text-gray-400"
+        />
       </div>
 
       {/* List */}
