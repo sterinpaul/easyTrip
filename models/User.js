@@ -17,6 +17,7 @@ const UserSchema = new mongoose.Schema(
     image: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Image",
+      set: (v) => v === "" ? null : v,
     },
     role: {
       type: String,
