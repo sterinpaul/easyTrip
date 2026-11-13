@@ -6,10 +6,23 @@ import { SidebarLink } from "@/components/SidebarLink";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/providers/AuthProvider";
+import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 
 export function Sidebar({ user }) {
   const [isOpen, setIsOpen] = useState(false);
   const { logout } = useAuth();
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setLoggingOut(false);
+      setConfirmLogout(false);
+    }
+  };
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
@@ -58,7 +71,7 @@ export function Sidebar({ user }) {
         </div>
 
         <button
-          onClick={logout}
+          onClick={() => { setIsOpen(false); setConfirmLogout(true); }}
           className="flex w-full items-center gap-3 px-4 py-3 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors text-sm font-medium"
         >
           <LogOut size={18} />
@@ -109,6 +122,15 @@ export function Sidebar({ user }) {
           </>
         )}
       </AnimatePresence>
+      <DeleteConfirmModal
+        isOpen={confirmLogout}
+        onClose={() => setConfirmLogout(false)}
+        onConfirm={handleLogout}
+        isDeleting={loggingOut}
+        title="Log out?"
+        description="Are you sure you want to log out?"
+        confirmLabel="Logout"
+      />
     </>
   );
 }

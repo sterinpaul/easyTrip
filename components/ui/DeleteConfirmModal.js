@@ -8,6 +8,7 @@ export default function DeleteConfirmModal({
     title = "Confirm Deletion",
     description = "Are you sure you want to delete this item? This action cannot be undone.",
     isDeleting = false,
+    confirmLabel = "Delete",
 }) {
     return (
         <AnimatePresence>
@@ -49,7 +50,7 @@ export default function DeleteConfirmModal({
                                     className="flex-1 py-3 px-4 rounded-xl text-white bg-red-500 hover:bg-red-600 font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
                                     {isDeleting ? <Loader2 size={18} className="animate-spin" /> : null}
-                                    <span>Delete</span>
+                                    <span>{confirmLabel}</span>
                                 </button>
                             </div>
                         </div>
