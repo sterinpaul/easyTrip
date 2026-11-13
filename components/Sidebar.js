@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LayoutDashboard, Users, Image as ImageIcon, LogOut, Plane, FileText, Menu, X, Building2 } from "lucide-react";
+import { LayoutDashboard, Users, Image as ImageIcon, LogOut, Plane, FileText, Menu, X, Building2, Calculator, Handshake } from "lucide-react";
 import { SidebarLink } from "@/components/SidebarLink";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,7 +13,7 @@ export function Sidebar({ user }) {
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
-  const SidebarContent = () => (
+  const renderSidebarContent = () => (
     <div className="flex flex-col h-full bg-white dark:bg-white/5 backdrop-blur-xl border-r border-gray-200 dark:border-white/10 p-6">
       <div className="flex items-center justify-between mb-10">
         <div className="flex items-center gap-3">
@@ -34,6 +34,8 @@ export function Sidebar({ user }) {
       <nav className="flex-1 space-y-2">
         <SidebarLink href="/" icon={<LayoutDashboard size={20} />} label="Dashboard" />
         <SidebarLink href="/itinerary" icon={<FileText size={20} />} label="Itineraries" />
+        <SidebarLink href="/calculator" icon={<Calculator size={20} />} label="Calculator" />
+        <SidebarLink href="/suppliers" icon={<Handshake size={20} />} label="Suppliers" />
         <SidebarLink href="/hotels" icon={<Building2 size={20} />} label="Hotels" />
         <SidebarLink href="/clients" icon={<Users size={20} />} label="Clients" />
         <SidebarLink href="/gallery" icon={<ImageIcon size={20} />} label="Gallery" />
@@ -81,7 +83,7 @@ export function Sidebar({ user }) {
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 h-full">
-        <SidebarContent />
+        {renderSidebarContent()}
       </aside>
 
       {/* Mobile Sidebar Overlay */}
@@ -102,7 +104,7 @@ export function Sidebar({ user }) {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed inset-y-0 right-0 w-80 bg-black z-100 md:hidden shadow-2xl border-l border-white/10"
             >
-              <SidebarContent />
+              {renderSidebarContent()}
             </motion.div>
           </>
         )}

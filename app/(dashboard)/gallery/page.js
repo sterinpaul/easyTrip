@@ -5,6 +5,7 @@ import { Plus, Trash2, MapPin, Loader2, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
+import Select from "@/components/ui/Select";
 import { Search } from "lucide-react";
 
 function useDebouncedValue(value, delay = 500) {
@@ -281,17 +282,12 @@ export default function GalleryPage() {
                 </div>
                 <div>
                   <label className="text-sm text-gray-500 dark:text-gray-400 mb-1 block">Category</label>
-                  <select
+                  <Select
+                    aria-label="Category"
                     value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                  >
-                    {CATEGORIES.filter(c => c !== "all").map(cat => (
-                      <option key={cat} value={cat}>
-                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setNewCategory}
+                    options={CATEGORIES.filter(c => c !== "all").map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1) }))}
+                  />
                 </div>
                 <div>
                   <label className="text-sm text-gray-500 dark:text-gray-400 mb-1 block">Image</label>

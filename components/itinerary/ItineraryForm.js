@@ -11,6 +11,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ImageSelector from "../common/ImageSelector";
+import Select from "../ui/Select";
 
 // ─── Shared Styles ───────────────────────────────────────────────
 const inputClass =
@@ -77,20 +78,18 @@ function CollapsibleSection({ title, icon: Icon, defaultOpen = true, children, c
 }
 
 // ─── Transportation Sub‑form ─────────────────────────────────────
-function TransportationFields({ prefix, register, errors, watch }) {
+function TransportationFields({ prefix, register, errors, watch, setValue }) {
   const e = prefix.split(".").reduce((o, k) => o?.[k], errors);
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
       <div className="space-y-2">
         <label className={labelClass}>Mode</label>
-        <div className="relative">
-          <select {...register(`${prefix}.mode`)} className={`${inputClass} appearance-none`}>
-            {TRANSPORT_MODES.map((m) => (
-              <option key={m.value} value={m.value} className="bg-white dark:bg-gray-900">{m.label}</option>
-            ))}
-          </select>
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-400">▼</div>
-        </div>
+        <Select
+          aria-label="Mode"
+          value={watch(`${prefix}.mode`)}
+          onChange={(v) => setValue(`${prefix}.mode`, v, { shouldDirty: true })}
+          options={TRANSPORT_MODES}
+        />
       </div>
       <div className="space-y-2">
         <label className={labelClass}>Vehicle Details</label>
@@ -404,14 +403,14 @@ function DestinationCard({
                   <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
                     <PlaneTakeoff size={14} className="text-green-500" /> Outbound
                   </h4>
-                  <TransportationFields prefix={`destinations.${dIdx}.transportation.outbound`} register={register} errors={errors} watch={watch} />
+                  <TransportationFields prefix={`destinations.${dIdx}.transportation.outbound`} register={register} errors={errors} watch={watch} setValue={setValue} />
                 </div>
                 <hr className="border-gray-200 dark:border-white/10" />
                 <div>
                   <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
                     <PlaneLanding size={14} className="text-orange-500" /> Inbound
                   </h4>
-                  <TransportationFields prefix={`destinations.${dIdx}.transportation.inbound`} register={register} errors={errors} watch={watch} />
+                  <TransportationFields prefix={`destinations.${dIdx}.transportation.inbound`} register={register} errors={errors} watch={watch} setValue={setValue} />
                 </div>
               </div>
             </motion.div>
@@ -443,12 +442,12 @@ function DestinationCard({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                       <div className="space-y-2">
                         <label className={labelClass}>Type</label>
-                        <div className="relative">
-                          <select {...register(`destinations.${dIdx}.hotelDetails.${htIdx}.type`)} className={`${inputClass} appearance-none`}>
-                            {HOTEL_TYPES.map(t => <option key={t} value={t} className="bg-white dark:bg-gray-900">{t}</option>)}
-                          </select>
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">▼</div>
-                        </div>
+                        <Select
+                          aria-label="Hotel type"
+                          value={watch(`destinations.${dIdx}.hotelDetails.${htIdx}.type`)}
+                          onChange={(v) => setValue(`destinations.${dIdx}.hotelDetails.${htIdx}.type`, v, { shouldDirty: true })}
+                          options={HOTEL_TYPES}
+                        />
                       </div>
                       <div className="space-y-2 flex items-end">
                         <label className="flex items-center gap-3 cursor-pointer">
