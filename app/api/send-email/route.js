@@ -24,7 +24,7 @@ export async function POST(req) {
     });
 
     const mailOptions = {
-      from: process.env.NODEMAILER_EMAIL,
+      from: process.env.SMTP_FROM || process.env.NODEMAILER_EMAIL,
       to,
       subject,
       text: message,

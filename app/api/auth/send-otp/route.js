@@ -43,7 +43,7 @@ export async function POST(req) {
     });
 
     const mailOptions = {
-      from: process.env.NODEMAILER_EMAIL,
+      from: process.env.SMTP_FROM || process.env.NODEMAILER_EMAIL,
       to: email,
       subject: "EasyTrip Login OTP",
       text: `Your OTP for EasyTrip login is: ${otp}. It is valid for 10 minutes.`,
