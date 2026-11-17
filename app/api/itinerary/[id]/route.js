@@ -92,8 +92,9 @@ export async function PUT(req, { params }) {
                 }
 
                 const destination = await Destination.create({
-                    name: dest.name,
-                    description: dest.description || "",
+                    kind: dest.kind || "DESTINATION",
+                    name: dest.kind === "INTERNAL_TRANSFER" ? "Internal Transfer" : dest.name,
+                    description: dest.kind === "INTERNAL_TRANSFER" ? "" : dest.description || "",
                     transportation,
                     hotelDetails: (dest.hotelDetails || []).map(ht => ({
                         type: ht.type || "STANDARD",

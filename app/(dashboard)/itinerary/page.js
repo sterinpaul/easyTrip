@@ -179,7 +179,7 @@ export default function ItinerariesPage() {
                       <div className="flex items-center gap-2">
                         <MapPin size={14} className="text-pink-500 shrink-0" />
                         <span className="text-sm truncate max-w-[180px]">
-                          {it.destinations?.map(d => d.name).filter(Boolean).join(", ") || "-"}
+                          {it.destinations?.filter(d => d.kind !== "INTERNAL_TRANSFER").map(d => d.name).filter(Boolean).join(", ") || "-"}
                         </span>
                       </div>
                     </td>

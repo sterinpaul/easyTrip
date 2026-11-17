@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
+import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 import {
   Plus, Trash2, Save, Upload, Loader2, ChevronDown, ChevronUp,
   MapPin, Plane, Calendar, Image as ImageIcon, Activity, Bus,
@@ -217,6 +218,11 @@ function ClientSelector({ selectedClient, onChange }) {
   );
 }
 
+const DESTINATION_KINDS = [
+  { value: "DESTINATION", label: "Destination" },
+  { value: "INTERNAL_TRANSFER", label: "Internal Transfer" },
+];
+
 // ─── Destination Card ────────────────────────────────────────────
 function HotelSelector({ selectedHotels, onChange }) {
   const [search, setSearch] = useState("");
@@ -313,6 +319,7 @@ function DestinationCard({
   const itinerary = watch(`destinations.${dIdx}.itinerary`) || [];
   const imageUrl = watch(`destinations.${dIdx}.image.url`);
   const hotelDetails = watch(`destinations.${dIdx}.hotelDetails`) || [];
+  const isTransfer = watch(`destinations.${dIdx}.kind`) === "INTERNAL_TRANSFER";
 
   const addHotelType = () => {
     const current = watch(`destinations.${dIdx}.hotelDetails`) || [];
@@ -355,15 +362,26 @@ function DestinationCard({
         <div className="w-9 h-9 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-lg">
           {dIdx + 1}
         </div>
-        <span className="text-xs uppercase tracking-widest text-gray-400">Destination</span>
+        <span className="text-xs uppercase tracking-widest text-gray-400">{isTransfer ? "Internal Transfer" : "Destination"}</span>
       </div>
 
-      {/* Name & Description */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {/* Type, Name & Description */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="space-y-2">
+          <label className={labelClass}>Type</label>
+          <Select
+            aria-label="Destination type"
+            value={watch(`destinations.${dIdx}.kind`) || "DESTINATION"}
+            onChange={(v) => setValue(`destinations.${dIdx}.kind`, v, { shouldDirty: true })}
+            options={DESTINATION_KINDS}
+          />
+        </div>
+        {/* Internal transfers are named "Internal Transfer" automatically (server-side) */}
+        {!isTransfer && <>
         <div className="space-y-2">
           <label className={labelClass}>Name *</label>
           <input
-            {...register(`destinations.${dIdx}.name`, { required: "Destination name is required" })}
+            {...register(`destinations.${dIdx}.name`, { validate: (v, all) => all.destinations?.[dIdx]?.kind === "INTERNAL_TRANSFER" || !!v?.trim() || "Destination name is required" })}
             className={inputClass}
             placeholder="e.g. Malaysia"
             spellCheck={true}
@@ -381,6 +399,7 @@ function DestinationCard({
             spellCheck={true}
           />
         </div>
+        </>}
       </div>
 
       {/* ── Transportation (per destination) ── */}
@@ -695,6 +714,7 @@ export default function ItineraryForm({ initialData }) {
     setValue,
     watch,
     reset,
+    getValues,
     formState: { errors },
   } = useForm({
     defaultValues: initialData || {
@@ -720,7 +740,7 @@ export default function ItineraryForm({ initialData }) {
       heroImage: null,
       highlightImages: [],
       destinations: [{
-        name: "", description: "",
+        name: "", description: "", kind: "DESTINATION",
         image: { title: "", description: "", url: "" },
         transportation: {
           outbound: { mode: "", from: "", to: "", departureTime: "", arrivalTime: "", vehicleDetails: "", notes: "" },
@@ -774,6 +794,53 @@ export default function ItineraryForm({ initialData }) {
     }
   }, [totalCost, rewardPercentage, rewardEnabled, setValue]);
 
+  // ── Auto-save draft to localStorage ──
+  const draftKey = `itinerary-draft:${initialData?._id || "new"}`;
+  const baselineRef = useRef(null); // JSON of the original (db/default) values
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const clearDraft = useCallback(() => {
+    try { localStorage.removeItem(draftKey); } catch {}
+  }, [draftKey]);
+
+  useEffect(() => {
+    baselineRef.current = JSON.stringify(getValues());
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved && saved !== baselineRef.current) {
+        const draft = JSON.parse(saved);
+        if (draft.rewardPercentage || draft.rewardPoints) setRewardEnabled(true);
+        reset(draft);
+        setDraftRestored(true);
+      }
+    } catch {}
+
+    let timer;
+    const sub = watch(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const current = JSON.stringify(getValues());
+        try {
+          if (current === baselineRef.current) localStorage.removeItem(draftKey);
+          else localStorage.setItem(draftKey, current);
+        } catch {}
+      }, 500);
+    });
+    return () => { clearTimeout(timer); sub.unsubscribe(); };
+  }, [draftKey, getValues, reset, watch]);
+
+  const handleCancel = () => {
+    if (JSON.stringify(getValues()) !== baselineRef.current) setConfirmCancel(true);
+    else { clearDraft(); router.back(); }
+  };
+
+  const discardDraft = () => {
+    clearDraft();
+    reset(JSON.parse(baselineRef.current));
+    setRewardEnabled(!!(initialData?.rewardPercentage || initialData?.rewardPoints));
+    setDraftRestored(false);
+  };
+
   // ── Clients ──
   // Clients are now searched via debounced input component.
 
@@ -826,6 +893,7 @@ export default function ItineraryForm({ initialData }) {
       endDate: itinerary.endDate ? new Date(itinerary.endDate).toISOString().split("T")[0] : "",
       destinations: (itinerary.destinations || []).map(dest => ({
         name: dest.name || "",
+        kind: dest.kind || "DESTINATION",
         description: dest.description || "",
         image: dest.image ? { _id: dest.image._id, url: dest.image.url, title: dest.image.title || "", description: dest.image.description || "" } : { url: "", title: "", description: "" },
         transportation: {
@@ -983,6 +1051,7 @@ export default function ItineraryForm({ initialData }) {
       return res.json();
     },
     onSuccess: () => {
+      clearDraft();
       queryClient.invalidateQueries({ queryKey: ["itineraries"] });
       router.push("/itinerary");
       router.refresh();
@@ -1002,6 +1071,12 @@ export default function ItineraryForm({ initialData }) {
   // ─────────────────────── RENDER ────────────────────────────────
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 max-w-4xl mx-auto pb-28">
+      {draftRestored && (
+        <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-sm text-amber-800 dark:text-amber-300">
+          <span>Restored your unsaved changes.</span>
+          <button type="button" onClick={discardDraft} className="font-medium underline hover:no-underline">Discard</button>
+        </div>
+      )}
 
       {/* ════════════════ PACKAGE SEARCH ════════════════ */}
       <div className={`${cardClass} relative`} style={{ zIndex: 60 }}>
@@ -1319,7 +1394,7 @@ export default function ItineraryForm({ initialData }) {
           <button
             type="button"
             onClick={() => appendDest({
-              name: "", description: "",
+              name: "", description: "", kind: "DESTINATION",
               image: { title: "", description: "", url: "" },
               transportation: {
                 outbound: { mode: "", from: "", to: "", departureTime: "", arrivalTime: "", vehicleDetails: "", notes: "" },
@@ -1390,7 +1465,7 @@ export default function ItineraryForm({ initialData }) {
 
       {/* ════════════════ ACTIONS ════════════════ */}
       <div className="fixed bottom-0 left-0 right-0 md:left-64 p-4 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-t border-gray-200 dark:border-white/10 z-50 flex justify-end gap-4">
-        <button type="button" onClick={() => router.back()} className="px-6 py-2 rounded-xl text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium transition-colors">
+        <button type="button" onClick={handleCancel} className="px-6 py-2 rounded-xl text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium transition-colors">
           Cancel
         </button>
         <button
@@ -1402,6 +1477,14 @@ export default function ItineraryForm({ initialData }) {
           <span>Save Itinerary</span>
         </button>
       </div>
+      <DeleteConfirmModal
+        isOpen={confirmCancel}
+        onClose={() => setConfirmCancel(false)}
+        onConfirm={() => { clearDraft(); setConfirmCancel(false); router.back(); }}
+        title="Discard changes?"
+        description="You have unsaved changes. Leaving will discard them."
+        confirmLabel="Discard"
+      />
     </form>
   );
 }

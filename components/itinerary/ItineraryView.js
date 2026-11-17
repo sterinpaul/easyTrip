@@ -55,9 +55,9 @@ const DayCard = ({ day, title, items }) => (
 );
 
 const InfoCard = ({ title, items }) => (
-  <div className="border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden print:break-inside-avoid">
+  <div className="flex flex-col border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden print:break-inside-avoid">
     <div className={`bg-[#c8a84b] py-2.5 px-4 [font-family:var(--font-montserrat)] text-sm font-black tracking-[2px] text-gray-900 dark:text-white`}>{title}</div>
-    <div className="py-[14px] px-4 bg-white dark:bg-[#161616]">
+    <div className="flex-1 py-[14px] px-4 bg-white dark:bg-[#161616]">
       {items.map((item, i) => (
         <div className="flex gap-2 items-start mb-2 [font-family:var(--font-montserrat)] text-xs text-gray-700 dark:text-[#ccc]" key={i}>
           <div className={`w-2.5 h-2.5 min-w-[10px] rounded-full mt-[3px] bg-[#c8a84b]`}></div>
@@ -159,7 +159,7 @@ export default function ItineraryView({ itinerary }) {
 
     setIsDownloading(true);
     const isDarkMode = document.documentElement.classList.contains('dark');
-    const bgColor = isDarkMode ? '#0a0a0a' : '#ffffff';
+    const bgColor = isDarkMode ? '#111111' : '#ffffff';
 
     const inlineComputedStyles = (root) => {
       const elements = [root, ...root.querySelectorAll('*')];
@@ -178,7 +178,7 @@ export default function ItineraryView({ itinerary }) {
 
     const fillPageBg = (pdf, w, h) => {
       if (isDarkMode) {
-        pdf.setFillColor(10, 10, 10);
+        pdf.setFillColor(17, 17, 17);
         pdf.rect(0, 0, w, h, 'F');
       }
     };
@@ -316,8 +316,10 @@ export default function ItineraryView({ itinerary }) {
   };
 
   // Build destination segments title
-  const segmentsTitle = destinations.map(d => d.name).join('-').toUpperCase() || 'TRAVEL ITINERARY';
-  const segmentsList = destinations.map(d => d.name).join(', ');
+  // Internal transfers are excluded from title/segments
+  const realDestinations = destinations.filter(d => d.kind !== 'INTERNAL_TRANSFER');
+  const segmentsTitle = realDestinations.map(d => d.name).join('-').toUpperCase() || 'TRAVEL ITINERARY';
+  const segmentsList = realDestinations.map(d => d.name).join(', ');
 
   return (
     <div className={`font-['Segoe_UI',sans-serif] bg-[#f5f5f5] dark:bg-[#0a0a0a] text-gray-900 dark:text-white print:absolute print:left-0 print:top-0 print:w-full print:z-9999 print:bg-white print:text-black print:m-0 print:p-0 min-h-screen max-w-[900px] mx-auto p-0 ${bebasNeue.variable} ${montserrat.variable} transition-colors duration-300`}>
@@ -367,7 +369,7 @@ export default function ItineraryView({ itinerary }) {
       </div>
 
       <div ref={contentRef} className="print:bg-white print:text-black">
-        <div className="pdf-page bg-white dark:bg-[#111] border-x border-t border-gray-200 dark:border-[#222]">
+        <div className="pdf-page flow-root bg-white dark:bg-[#111] border-x border-t border-gray-200 dark:border-[#222]">
           {/* Hero */}
           <div className="relative flex flex-col justify-between gap-2 p-5 min-h-[400px] h-fit isolate print:h-[400px]">
             <div className="absolute inset-0 bg-cover bg-center bg-no-repeat -z-10" style={{ backgroundImage: `url(${heroImageUrl})` }}></div>
@@ -446,7 +448,7 @@ export default function ItineraryView({ itinerary }) {
 
           {/* ── Per-Destination Sections ── */}
           {destinations.map((dest, dIdx) => (
-            <div key={dIdx}>
+            <div key={dIdx} className="flow-root">
               {/* Destination Name Header */}
               {destinations.length > 1 && (
                 <div className="px-5 mt-4">

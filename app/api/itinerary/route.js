@@ -52,7 +52,7 @@ export async function GET(req) {
     const itineraries = await Itinerary.find(query)
       .select("title packageId startDate endDate category type totalCost guestCount client destinations")
       .populate({ path: "client", match: { isActive: true }, select: "name" })
-      .populate({ path: "destinations", match: { isActive: true }, select: "name" })
+      .populate({ path: "destinations", match: { isActive: true }, select: "name kind" })
       .sort({ startDate: -1 })
       .skip(skip)
       .limit(limit);
@@ -117,8 +117,9 @@ export async function POST(req) {
 
         // Create Destination document
         const destination = await Destination.create({
-          name: dest.name,
-          description: dest.description || "",
+          kind: dest.kind || "DESTINATION",
+          name: dest.kind === "INTERNAL_TRANSFER" ? "Internal Transfer" : dest.name,
+          description: dest.kind === "INTERNAL_TRANSFER" ? "" : dest.description || "",
           transportation,
           hotelDetails: (dest.hotelDetails || []).map(ht => ({
             type: ht.type || "STANDARD",

@@ -1,3 +1,7 @@
+"use client";
+
+import { useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
@@ -10,10 +14,14 @@ export default function DeleteConfirmModal({
     isDeleting = false,
     confirmLabel = "Delete",
 }) {
-    return (
+    const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
+    if (!mounted) return null;
+
+    // Portaled to <body> so page stacking contexts (sticky headers, z-indexed cards) can't cover it.
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -57,6 +65,7 @@ export default function DeleteConfirmModal({
                     </motion.div>
                 </div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 }

@@ -92,6 +92,7 @@ export default async function EditItineraryPage({ params }) {
         destinations: (itinerary.destinations || []).map(dest => ({
             _id: dest._id.toString(),
             name: dest.name,
+            kind: dest.kind || "DESTINATION",
             description: dest.description || "",
             image: dest.image ? {
                 _id: dest.image._id.toString(),

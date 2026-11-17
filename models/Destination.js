@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const destinationSchema = new mongoose.Schema({
     name: { type: String, required: true },
     description: { type: String },
+    kind: { type: String, enum: ["DESTINATION", "INTERNAL_TRANSFER"], default: "DESTINATION" },
     transportation: {
         outbound: {
             type: mongoose.Schema.Types.ObjectId,
@@ -35,5 +36,8 @@ const destinationSchema = new mongoose.Schema({
     isActive: { type: Boolean, default: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
 }, { timestamps: true });
+
+// Dev hot-reload keeps the old compiled model, which silently drops new fields like `kind`.
+if (process.env.NODE_ENV !== "production") delete mongoose.models.Destination;
 
 export default mongoose.models.Destination || mongoose.model("Destination", destinationSchema);
